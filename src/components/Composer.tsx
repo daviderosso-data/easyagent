@@ -1,11 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useAgent } from "@/store/agent";
 import { useT } from "@/i18n";
+import { CommandPalette } from "@/components/CommandPalette";
 
 export function Composer({ id }: { id: string }) {
   const [text, setText] = useState("");
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const running = useAgent((s) => s.sessions[id]?.running ?? false);
   const cwd = useAgent((s) => s.sessions[id]?.cwd ?? "");
   const send = useAgent((s) => s.send);
@@ -26,9 +29,26 @@ export function Composer({ id }: { id: string }) {
     void send(id, val);
   };
 
+  const insertCommand = (val: string) => {
+    setText(val);
+    const el = inputRef.current;
+    if (el) {
+      el.focus();
+      requestAnimationFrame(() => el.setSelectionRange(val.length, val.length));
+    }
+  };
+
   return (
     <div className="composer">
       <div className="presets">
+        <button
+          className="cmd-trigger"
+          disabled={running || !cwd}
+          onClick={() => setPaletteOpen(true)}
+          title={t("commandsTip")}
+        >
+          / {t("commands")}
+        </button>
         {presets.map((p) => (
           <button
             key={p.label}
@@ -46,6 +66,7 @@ export function Composer({ id }: { id: string }) {
 
       <div className="composer-row">
         <textarea
+          ref={inputRef}
           className="composer-input"
           placeholder={t("inputPlaceholder")}
           value={text}
@@ -68,6 +89,15 @@ export function Composer({ id }: { id: string }) {
           </button>
         )}
       </div>
+
+      {paletteOpen && (
+        <CommandPalette
+          panelId={id}
+          cwd={cwd}
+          onInsert={insertCommand}
+          onClose={() => setPaletteOpen(false)}
+        />
+      )}
     </div>
   );
 }

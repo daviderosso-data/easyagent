@@ -23,6 +23,15 @@ export const messages = {
     presetTests: "🧪 Write tests",
     presetSummary: "📝 Summarize recent changes",
 
+    // Command palette
+    commands: "Commands",
+    commandsTip: "Claude Code commands — run one with a click",
+    searchCommands: "Search commands…",
+    commandsLoading: "Loading commands…",
+    noCommands: "No matching commands.",
+    commandsError: "Couldn't load commands. Try again.",
+    commandsHint: "Click to run. Commands that need input open in the message box.",
+
     // Transcript
     emptyTitle: "Hi! I'm Claude Code.",
     emptyBody: "Tell me what you'd like to do — I can read and write files, run commands and fix your project. I'll ask before doing anything important.",
@@ -191,6 +200,15 @@ export const messages = {
     presetFix: "🐛 Trova e sistema un bug",
     presetTests: "🧪 Scrivi i test",
     presetSummary: "📝 Riassumi le modifiche recenti",
+
+    // Command palette
+    commands: "Comandi",
+    commandsTip: "Comandi di Claude Code — eseguine uno con un clic",
+    searchCommands: "Cerca comandi…",
+    commandsLoading: "Carico i comandi…",
+    noCommands: "Nessun comando corrispondente.",
+    commandsError: "Impossibile caricare i comandi. Riprova.",
+    commandsHint: "Clicca per eseguire. I comandi che richiedono argomenti si aprono nella barra del messaggio.",
 
     emptyTitle: "Ciao! Sono Claude Code.",
     emptyBody: "Scrivi cosa vuoi fare — posso leggere e scrivere file, eseguire comandi e sistemare il tuo progetto. Prima di ogni azione importante ti chiedo conferma.",
