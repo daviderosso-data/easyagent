@@ -10,13 +10,13 @@ export function GET() {
 
 export async function POST(req: Request) {
   if (!tokenValid(req)) return Response.json({ ok: false }, { status: 403 });
-  let name: string;
+  let body: { name: string; template?: string };
   try {
-    name = z.object({ name: z.string().min(1).max(80) }).parse(await req.json()).name;
+    body = z.object({ name: z.string().min(1).max(80), template: z.string().optional() }).parse(await req.json());
   } catch {
     return Response.json({ ok: false, error: "Invalid name" }, { status: 400 });
   }
-  return Response.json(createProjectMeta(name));
+  return Response.json(createProjectMeta(body.name, body.template));
 }
 
 export async function PATCH(req: Request) {

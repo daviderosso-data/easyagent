@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAgent } from "@/store/agent";
 import { useT } from "@/i18n";
+import { TEMPLATE_IDS, TEMPLATE_LABEL_KEY, type TemplateId } from "@/lib/templates";
 
 interface ProjectInfo {
   folder: string;
@@ -29,6 +30,7 @@ export function ProjectsPanel({ panelId, onClose }: { panelId: string; onClose: 
   const [selected, setSelected] = useState<ProjectInfo | null>(null);
   const [sessions, setSessions] = useState<SessionSummary[] | null>(null);
   const [newName, setNewName] = useState("");
+  const [template, setTemplate] = useState<TemplateId>("empty");
   const [renaming, setRenaming] = useState<string | null>(null);
   const [renameVal, setRenameVal] = useState("");
   const [confirmDel, setConfirmDel] = useState<string | null>(null);
@@ -43,8 +45,9 @@ export function ProjectsPanel({ panelId, onClose }: { panelId: string; onClose: 
   const create = async () => {
     const n = newName.trim();
     if (!n) return;
-    const d = await fetch("/api/projects", { method: "POST", headers: headers(), body: JSON.stringify({ name: n }) }).then((r) => r.json());
+    const d = await fetch("/api/projects", { method: "POST", headers: headers(), body: JSON.stringify({ name: n, template }) }).then((r) => r.json());
     setNewName("");
+    setTemplate("empty");
     await load();
     if (d.ok && d.project) void selectProject(d.project);
   };
@@ -130,6 +133,18 @@ export function ProjectsPanel({ panelId, onClose }: { panelId: string; onClose: 
             <button className="btn btn-primary btn-sm" disabled={!newName.trim()} onClick={() => void create()}>
               ＋ {t("create")}
             </button>
+          </div>
+          <div className="tpl-row">
+            <span className="tpl-label">{t("template")}</span>
+            {TEMPLATE_IDS.map((id) => (
+              <button
+                key={id}
+                className={`tpl-chip ${template === id ? "tpl-chip-active" : ""}`}
+                onClick={() => setTemplate(id)}
+              >
+                {t(TEMPLATE_LABEL_KEY[id])}
+              </button>
+            ))}
           </div>
           {projects === null ? (
             <p className="settings-sub">…</p>

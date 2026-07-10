@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync, mkdirSync, readdirSync, statSync, existsSy
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { PROJECTS_ROOT, ensureProjectsRoot, createProject, realWithinProjectsRoot } from "@/server/projects";
+import { scaffoldTemplate, isTemplateId } from "@/server/project-templates";
 
 const META_DIR = join(homedir(), ".easyclaude");
 const META_FILE = join(META_DIR, "projects.json");
@@ -80,7 +81,10 @@ export function listProjects(): ProjectInfo[] {
   return out;
 }
 
-export function createProjectMeta(name: string): { ok: boolean; project?: ProjectInfo; error?: string } {
+export function createProjectMeta(
+  name: string,
+  template?: unknown,
+): { ok: boolean; project?: ProjectInfo; error?: string } {
   const res = createProject(name);
   if (!res.ok || !res.path || !res.name) return { ok: false, error: "create-failed" };
   const meta = loadMeta();
@@ -88,6 +92,8 @@ export function createProjectMeta(name: string): { ok: boolean; project?: Projec
   const displayName = name.trim() || res.name;
   meta[res.name] = { displayName, type: "manual", createdAt: now, lastOpenedAt: now };
   saveMeta(meta);
+  // Scaffold starter files (skips the "empty"-only README when no template given).
+  if (isTemplateId(template)) scaffoldTemplate(res.path, displayName, template);
   return { ok: true, project: { folder: res.name, displayName, path: res.path, type: "manual", createdAt: now, lastOpenedAt: now } };
 }
 

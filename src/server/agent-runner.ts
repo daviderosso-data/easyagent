@@ -5,9 +5,10 @@ import type { SecurityConfig, Lang } from "@/lib/settings";
 import { behaviorToMode, READ_ONLY_TOOLS } from "@/server/safety-presets";
 import { makeClassifier, buildRules } from "@/server/command-policy";
 import { blockedReason, authError, genericError } from "@/server/i18n-server";
+import { basename } from "node:path";
 import { buildAgentEnv } from "@/server/security";
 import { sessionManager, type Turn } from "@/server/session-manager";
-import { recordUsage, saveRateLimits } from "@/server/usage-store";
+import { recordUsage, saveRateLimits, type UsageStatus } from "@/server/usage-store";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -65,15 +66,55 @@ function stringifyToolResult(content: unknown): string {
   return JSON.stringify(content);
 }
 
-function recordTurnUsage(model: string, result: any): void {
+/** Per-turn context recorded alongside usage for later breakdowns. */
+interface TurnMeta {
+  model: string;
+  provider: string;
+  project: string;
+  sessionId: string;
+  effort?: string;
+}
+
+function recordTurnUsage(meta: TurnMeta, result: any): void {
   const u = result?.usage ?? {};
   recordUsage({
+    v: 2,
     ts: Date.now(),
     costUsd: result?.total_cost_usd ?? 0,
     inTok: u.input_tokens ?? 0,
     outTok: u.output_tokens ?? 0,
     cacheTok: (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0),
-    model,
+    model: meta.model,
+    provider: meta.provider,
+    project: meta.project,
+    sessionId: meta.sessionId,
+    effort: meta.effort,
+    durationMs: result?.duration_ms ?? 0,
+    numTurns: result?.num_turns ?? 0,
+    status: result?.is_error ? "error" : "ok",
+    subtype: result?.subtype,
+  });
+}
+
+/** Record a turn that ended without a result (error or user abort), so failed
+ *  turns aren't silently missing from usage/analytics. */
+function recordTurnOutcome(meta: TurnMeta, status: UsageStatus): void {
+  recordUsage({
+    v: 2,
+    ts: Date.now(),
+    costUsd: 0,
+    inTok: 0,
+    outTok: 0,
+    cacheTok: 0,
+    model: meta.model,
+    provider: meta.provider,
+    project: meta.project,
+    sessionId: meta.sessionId,
+    effort: meta.effort,
+    durationMs: 0,
+    numTurns: 0,
+    status,
+    subtype: status,
   });
 }
 
@@ -179,6 +220,16 @@ async function runTurnBody(params: RunParams): Promise<void> {
   // partial text/thinking deltas accumulate under one item on the client.
   let streamMsgId = "";
 
+  // Snapshot of the turn context at record time (model/session evolve as the
+  // turn runs). provider is "claude" for this SDK runner.
+  const meta = (): TurnMeta => ({
+    model: activeModel,
+    provider: "claude",
+    project: basename(cwd),
+    sessionId: currentSessionId,
+    effort,
+  });
+
   try {
     const q = query({
       prompt,
@@ -264,7 +315,7 @@ async function runTurnBody(params: RunParams): Promise<void> {
       } else if (m.type === "result") {
         sawResult = true;
         currentSessionId = m.session_id ?? currentSessionId;
-        recordTurnUsage(activeModel, m);
+        recordTurnUsage(meta(), m);
         send({
           type: "done",
           sessionId: currentSessionId,
@@ -281,6 +332,7 @@ async function runTurnBody(params: RunParams): Promise<void> {
     if (!sawResult) {
       const aborted = abort.signal.aborted;
       const msg = e instanceof Error ? e.message : String(e);
+      recordTurnOutcome(meta(), aborted ? "aborted" : "error");
       if (aborted) {
         send({ type: "done", sessionId: currentSessionId, isError: false, subtype: "aborted", numTurns: 0, durationMs: 0, totalCostUsd: 0, usage: null });
       } else {
