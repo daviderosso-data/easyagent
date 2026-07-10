@@ -15,14 +15,8 @@ export async function POST(req: Request) {
   } catch {
     return Response.json({ error: "Richiesta non valida" }, { status: 400 });
   }
-  const turn = sessionManager.get(turnId);
-  if (!turn) return Response.json({ ok: true, note: "già terminato" });
+  if (!sessionManager.get(turnId)) return Response.json({ ok: true, note: "already ended" });
 
-  try {
-    turn.query?.interrupt?.();
-  } catch {
-    /* best effort */
-  }
-  turn.abort.abort();
+  sessionManager.abort(turnId);
   return Response.json({ ok: true });
 }

@@ -52,6 +52,7 @@ export const messages = {
     proceed: "Yes, proceed",
     proceedRed: "Understood, proceed",
     typeToConfirm: "To proceed, type",
+    moreApprovals: "more waiting",
 
     // Header
     profileLocked: "Locked",
@@ -228,6 +229,7 @@ export const messages = {
     proceed: "Sì, procedi",
     proceedRed: "Ho capito, procedi",
     typeToConfirm: "Per procedere scrivi",
+    moreApprovals: "altre in attesa",
 
     profileLocked: "Blindato",
     profileStandard: "Standard",

@@ -6,13 +6,16 @@ import { behaviorToMode, READ_ONLY_TOOLS } from "@/server/safety-presets";
 import { makeClassifier, buildRules } from "@/server/command-policy";
 import { blockedReason, authError, genericError } from "@/server/i18n-server";
 import { buildAgentEnv } from "@/server/security";
-import { sessionManager } from "@/server/session-manager";
+import { sessionManager, type Turn } from "@/server/session-manager";
 import { recordUsage, saveRateLimits } from "@/server/usage-store";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 interface RunParams {
   turnId: string;
+  /** Turn already registered in the sessionManager by the route (slot reserved
+   *  atomically there). runTurn ALWAYS releases it in its finally. */
+  turn: Turn;
   prompt: string;
   cwd: string;
   sessionId?: string;
@@ -40,6 +43,12 @@ export function buildSandboxConfig(): Record<string, unknown> | null {
         { path: "~/.gnupg", mode: "deny" },
         { path: "~/.config/gcloud", mode: "deny" },
         { path: "~/.claude/.credentials.json", mode: "deny" },
+        { path: "~/.kube", mode: "deny" },
+        { path: "~/.docker", mode: "deny" },
+        { path: "~/.netrc", mode: "deny" },
+        { path: "~/.npmrc", mode: "deny" },
+        { path: "~/.git-credentials", mode: "deny" },
+        { path: "~/.pgpass", mode: "deny" },
       ],
     },
   };
@@ -90,10 +99,20 @@ export async function captureRateLimits(q: any): Promise<void> {
   }
 }
 
+/** Run one agent turn. The turn's concurrency slot was reserved by the route;
+ *  this wrapper guarantees it is released no matter where the body throws
+ *  (including option/rule building, before the query even starts). */
 export async function runTurn(params: RunParams): Promise<void> {
-  const { turnId, prompt, cwd, sessionId, config, lang, model, effort, systemAppend, send } = params;
-  const abort = new AbortController();
-  const turn = sessionManager.create(turnId, abort);
+  try {
+    await runTurnBody(params);
+  } finally {
+    sessionManager.end(params.turnId);
+  }
+}
+
+async function runTurnBody(params: RunParams): Promise<void> {
+  const { turnId, turn, prompt, cwd, sessionId, config, lang, model, effort, systemAppend, send } = params;
+  const abort = turn.abort;
   const classify = makeClassifier(cwd, config);
   const permissionMode = behaviorToMode(config.behavior);
   const { deny, ask } = buildRules(config);
@@ -165,6 +184,10 @@ export async function runTurn(params: RunParams): Promise<void> {
         ...(model ? { model } : {}),
         ...(effort ? { effort } : {}),
         permissionMode,
+        // The SDK requires this alongside bypassPermissions; without it the
+        // "open" behavior fails instead of skipping prompts. The PreToolUse
+        // hard gate still applies whenever the config enables blocks.
+        ...(permissionMode === "bypassPermissions" ? { allowDangerouslySkipPermissions: true } : {}),
         ...(sessionId ? { resume: sessionId } : {}),
         ...(systemAppend
           ? { systemPrompt: { type: "preset", preset: "claude_code", append: systemAppend } }
@@ -247,7 +270,5 @@ export async function runTurn(params: RunParams): Promise<void> {
         }
       }
     }
-  } finally {
-    sessionManager.end(turnId);
   }
 }

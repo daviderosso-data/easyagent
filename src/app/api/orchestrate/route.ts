@@ -4,6 +4,7 @@ import { tokenValid } from "@/server/security";
 import { runOrchestrator } from "@/server/orchestrator";
 import { createProject, createProjectFolder, writeProjectFile, PROJECTS_ROOT } from "@/server/projects";
 import { markOrchestrated } from "@/server/project-registry";
+import { orchestrationGrants } from "@/server/orchestration-grants";
 
 export const runtime = "nodejs";
 export const maxDuration = 180;
@@ -63,5 +64,8 @@ export async function POST(req: Request) {
     projectName: proj.name,
     brief: plan.brief ?? "",
     roles,
+    // Lets this orchestration's turns use the autonomous-but-safe config;
+    // scoped to the project just created and time-limited.
+    grant: orchestrationGrants.mint(proj.path),
   });
 }

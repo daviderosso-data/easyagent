@@ -26,8 +26,22 @@ const SHELL_PROFILES = [
   ".zshrc", ".zprofile", ".zshenv", ".bashrc", ".bash_profile", ".bash_login", ".profile",
 ].map((f) => `${HOME}/${f}`);
 const SECRET_DIRS = [`${HOME}/.ssh`, `${HOME}/.aws`, `${HOME}/.config/gcloud`, `${HOME}/.gnupg`, `${HOME}/.kube`];
-const SECRET_FILES = [`${HOME}/.claude/.credentials.json`, `${HOME}/.netrc`, `${HOME}/.npmrc`, `${HOME}/.docker/config.json`];
-const SECRET_REFS = [".ssh", ".aws", ".config/gcloud", ".gnupg", ".claude/.credentials", ".docker/config", ".kube/config"];
+const SECRET_FILES = [
+  `${HOME}/.claude/.credentials.json`, `${HOME}/.netrc`, `${HOME}/.npmrc`,
+  `${HOME}/.docker/config.json`, `${HOME}/.git-credentials`, `${HOME}/.pgpass`,
+];
+const SECRET_REFS = [
+  ".ssh", ".aws", ".config/gcloud", ".gnupg", ".claude/.credentials", ".docker/config", ".kube/config",
+  ".netrc", ".npmrc", ".git-credentials", ".pgpass",
+];
+/** Basenames that are secrets in ANY directory (not just $HOME). */
+const SECRET_BASENAMES = new Set([".netrc", ".npmrc", ".git-credentials", ".pgpass"]);
+/** .env variants that are templates, not secrets (commonly committed). */
+const ENV_TEMPLATE_RE = /\.(example|sample|template|dist)$/;
+/** A ".env" / ".env.local" path token inside a shell command. The leading
+ *  [^\w.] excludes "process.env" / "import.meta.env"; the trailing guard
+ *  makes the whole token match so ".env.example" can be exempted. */
+const ENV_TOKEN_RE = /(^|[^\w.])(\.env(?:\.[\w-]+)*)(?![\w.])/g;
 
 function escapeRe(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -44,6 +58,13 @@ function isWithin(p: string, root: string): boolean {
 }
 function pathIsSecret(p: string): boolean {
   return SECRET_FILES.includes(p) || SHELL_PROFILES.includes(p) || SECRET_DIRS.some((d) => p === d || p.startsWith(d + sep));
+}
+/** Secret files identified by basename alone, in any directory: .env variants
+ *  (except committed templates like .env.example) and credential dotfiles. */
+function basenameIsSecret(p: string): boolean {
+  const base = p.split(sep).pop() ?? "";
+  if (SECRET_BASENAMES.has(base)) return true;
+  return /^\.env(\.[\w-]+)*$/.test(base) && !ENV_TEMPLATE_RE.test(base);
 }
 function pathIsSystem(p: string): boolean {
   return SYSTEM_PATHS.some((d) => p === d || p.startsWith(d + sep));
@@ -68,6 +89,12 @@ function writesToProtectedPath(c: string): boolean {
 }
 function readsSecret(c: string): boolean {
   if (/security\s+find-(generic|internet)-password/.test(c)) return true;
+  // Any Bash mention of a .env file counts: a string matcher can't tell reads
+  // from writes ("cat .env | curl…"), and the Write tool remains available
+  // for legitimately creating env files.
+  for (const m of c.matchAll(ENV_TOKEN_RE)) {
+    if (!ENV_TEMPLATE_RE.test(m[2])) return true;
+  }
   return SECRET_REFS.some((s) => c.includes(s));
 }
 function isServiceInstall(c: string): boolean {
@@ -165,7 +192,14 @@ export function makeClassifier(cwd: string, cfg: SecurityConfig): Classify {
       }
       case "Read": {
         const abs = resolvePath(String(input.file_path ?? ""), cwd);
-        sev = pathIsSecret(abs) ? "secret" : "none";
+        sev = pathIsSecret(abs) || basenameIsSecret(abs) ? "secret" : "none";
+        break;
+      }
+      case "Grep":
+      case "Glob": {
+        // These read file contents/names too; keep them out of secret dirs.
+        const abs = resolvePath(String(input.path ?? cwd), cwd);
+        sev = pathIsSecret(abs) || basenameIsSecret(abs) ? "secret" : "none";
         break;
       }
       case "WebFetch":
@@ -187,7 +221,9 @@ const CATASTROPHIC_DENY = [
 ];
 const SECRET_DENY = [
   "Read(~/.ssh/**)", "Read(~/.aws/**)", "Read(~/.gnupg/**)", "Read(~/.config/gcloud/**)",
-  "Read(~/.claude/.credentials.json)", "Read(./.env)", "Read(./.env.*)",
+  "Read(~/.kube/**)", "Read(~/.claude/.credentials.json)", "Read(~/.netrc)", "Read(~/.npmrc)",
+  "Read(~/.docker/config.json)", "Read(~/.git-credentials)", "Read(~/.pgpass)",
+  "Read(./.env)", "Read(./.env.*)", "Read(**/.env)", "Read(**/.env.*)",
 ];
 const INSTALL_NETWORK = [
   "Bash(npm install:*)", "Bash(npm uninstall:*)", "Bash(npm add:*)", "Bash(npx:*)",

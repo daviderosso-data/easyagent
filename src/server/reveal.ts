@@ -1,12 +1,13 @@
 import { spawn } from "node:child_process";
 import { statSync } from "node:fs";
 import { resolve } from "node:path";
-import { withinProjectsRoot } from "@/server/projects";
+import { realWithinProjectsRoot } from "@/server/projects";
 
 /** Open a project folder in the OS file manager (Finder / Explorer / xdg).
- *  Confined to the projects root; spawns with an args array (no shell). */
+ *  Confined to the projects root (symlink-safe); spawns with an args array
+ *  (no shell). */
 export function revealInOS(path: unknown): boolean {
-  if (!withinProjectsRoot(path)) return false;
+  if (!realWithinProjectsRoot(path)) return false;
   const abs = resolve(path as string);
   try {
     if (!statSync(abs).isDirectory()) return false;

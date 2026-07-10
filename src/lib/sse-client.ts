@@ -1,11 +1,14 @@
 import type { AgentEvent, SendRequest } from "@/lib/agent-events";
 
-/** POST a prompt and stream back agent events (SSE over fetch). */
+/** POST a prompt and stream back agent events (SSE over fetch).
+ *  `onTurnId` fires as soon as the response headers arrive — before any SSE
+ *  event — so Stop can target the server turn during SDK startup too. */
 export async function streamAgent(
   body: SendRequest,
   onEvent: (e: AgentEvent) => void,
   signal?: AbortSignal,
   token?: string | null,
+  onTurnId?: (turnId: string) => void,
 ): Promise<void> {
   let res: Response;
   try {
@@ -24,6 +27,9 @@ export async function streamAgent(
     onEvent({ type: "error", message: `Errore del server (${res.status}).` });
     return;
   }
+
+  const turnId = res.headers.get("x-turn-id");
+  if (turnId && onTurnId) onTurnId(turnId);
 
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
