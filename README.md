@@ -1,5 +1,7 @@
 # easyclaude
 
+[![CI](https://github.com/daviderosso-data/easyclaude/actions/workflows/ci.yml/badge.svg)](https://github.com/daviderosso-data/easyclaude/actions/workflows/ci.yml)
+
 A local web interface for [Claude Code](https://claude.com/claude-code) — the full coding agent — for
 people who don't use a terminal. Every file change appears as a visual diff with one-click approval; work
 stays inside your project folder and runs on your own subscription. Includes security profiles, parallel
@@ -60,6 +62,18 @@ npm run dev        # development, at http://127.0.0.1:3000
 # or
 npm run build && npm start
 ```
+
+Quality checks (also run in CI on macOS and Windows):
+
+```bash
+npm run typecheck  # tsc --noEmit
+npm run lint       # ESLint (flat config)
+npm run test       # vitest (watch); npm run test:run for a single pass
+```
+
+The test suite is a regression harness for the security and turn-lifecycle
+code — secret detection, working-directory confinement, the concurrency-slot
+lifecycle, and orchestration grants live in `tests/`.
 
 ## Security profiles
 

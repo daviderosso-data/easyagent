@@ -36,6 +36,13 @@ if ! command -v npm >/dev/null 2>&1; then
   pause_and_exit 1
 fi
 
+# Next 16 needs Node >= 20.9. Let node itself do the semver comparison.
+if ! node -e 'var v=process.versions.node.split(".").map(Number);process.exit(v[0]>20||(v[0]===20&&v[1]>=9)?0:1)' 2>/dev/null; then
+  echo "!! Your Node.js is too old ($(node -v 2>/dev/null)). easyclaude needs 20.9 or newer."
+  echo "   Update it from https://nodejs.org and try again."
+  pause_and_exit 1
+fi
+
 if [ ! -d node_modules ]; then
   echo "> First run: installing dependencies (this may take a few minutes)..."
   npm install || { echo "!! Dependency installation failed."; pause_and_exit 1; }
