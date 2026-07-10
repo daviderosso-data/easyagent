@@ -6,6 +6,7 @@ import type { AppSettings, Lang, Theme, SecurityConfig } from "@/lib/settings";
 import type { Effort } from "@/lib/models";
 import { DEFAULT_SETTINGS, PROFILES, detectProfile } from "@/lib/settings";
 import { streamAgent } from "@/lib/sse-client";
+import { messages } from "@/i18n/messages";
 
 export type Item =
   | { kind: "user"; id: string; text: string }
@@ -59,7 +60,7 @@ export interface Session {
   effort?: Effort;
 }
 
-export type OrchPhase = "idle" | "planning" | "working" | "reviewing" | "done" | "error";
+export type OrchPhase = "idle" | "planning" | "working" | "reviewing" | "done" | "error" | "cancelled";
 
 export interface OrchState {
   active: boolean;
@@ -71,6 +72,8 @@ export interface OrchState {
   projectRoot: string;
   runInstructions: string;
   error: string;
+  /** Set by stopOrchestration; the round loop checks it and bails out. */
+  cancelRequested: boolean;
 }
 
 const IDLE_ORCH: OrchState = {
@@ -83,6 +86,7 @@ const IDLE_ORCH: OrchState = {
   projectRoot: "",
   runInstructions: "",
   error: "",
+  cancelRequested: false,
 };
 
 export interface RoleSpec {
@@ -114,6 +118,7 @@ interface AppState {
   removePanel: (id: string) => void;
   setActivePanel: (id: string) => void;
   runOrchestration: (goal: string) => Promise<void>;
+  stopOrchestration: () => void;
   dismissOrchestration: () => void;
 
   setCwd: (id: string, cwd: string) => void;
@@ -236,9 +241,35 @@ export const useAgent = create<AppState>((set, get) => ({
 
   dismissOrchestration: () => set({ orch: IDLE_ORCH }),
 
+  stopOrchestration: () => {
+    const { orch } = get();
+    if (!orch.active) return;
+    // Stop every panel this orchestration owns (aborts the server turns too),
+    // then flag the round loop to bail out on its next checkpoint.
+    for (const id of [orch.orchestratorPanel, ...orch.rolePanels].filter(Boolean)) {
+      void get().stop(id);
+    }
+    set((s) => ({ orch: { ...s.orch, active: false, cancelRequested: true, phase: "cancelled" } }));
+  },
+
   async runOrchestration(goal) {
     const st0 = get();
     if (st0.orch.active) return;
+    // Don't orphan turns already running in existing panels: abort them first,
+    // otherwise the layout replacement below drops their controllers and the
+    // server turns keep occupying concurrency slots until restart.
+    for (const s of Object.values(st0.sessions)) {
+      if (s.running) {
+        s.abortController?.abort();
+        if (s.turnId) {
+          void fetch("/api/chat/stop", {
+            method: "POST",
+            headers: authHeaders(st0.token),
+            body: JSON.stringify({ turnId: s.turnId }),
+          }).catch(() => {});
+        }
+      }
+    }
     set({ orch: { ...IDLE_ORCH, active: true, phase: "planning" } });
 
     // 1) Plan — server creates a NEW project + role subfolders + plan files.
@@ -292,14 +323,24 @@ export const useAgent = create<AppState>((set, get) => ({
     pushAssistant(orch.id, `Project "${projectName}" created.\n\n${brief}\n\nDispatching ${roleData.length} agents…`);
 
     // 3) Round loop: roles work → orchestrator reviews → done or dispatch fixes.
+    const cancelled = () => get().orch.cancelRequested;
     let dispatch = roleData.map((r, i) => ({ panelId: rolePanels[i], prompt: rolePrompt(r.role, r.task) }));
     const MAX_ROUNDS = 3;
     for (let round = 1; round <= MAX_ROUNDS; round++) {
       set((s) => ({ orch: { ...s.orch, phase: "working", round } }));
       await Promise.all(dispatch.map((d) => get().send(d.panelId, d.prompt)));
+      if (cancelled()) return; // stopOrchestration already set phase "cancelled"
 
       set((s) => ({ orch: { ...s.orch, phase: "reviewing" } }));
       await get().send(orch.id, reviewPrompt(round));
+      if (cancelled()) return;
+
+      // A failed review turn must NOT be read as success: bail out honestly
+      // instead of concluding "done" on empty/stale text.
+      if (sessionErrored(orch.id)) {
+        set((s) => ({ orch: { ...s.orch, phase: "error", active: false, error: orchError(get().lang) } }));
+        return;
+      }
       const decision = parseDecision(lastAssistantText(orch.id));
 
       if (decision.status === "done" || round === MAX_ROUNDS) {
@@ -628,6 +669,23 @@ function lastAssistantText(id: string): string {
     if (items[i].kind === "assistant") return (items[i] as Extract<Item, { kind: "assistant" }>).text;
   }
   return "";
+}
+
+/** True if the session's most recent turn ended in an error (an error item or
+ *  a done item with isError) — used so a failed orchestrator review isn't
+ *  mistaken for a successful "done". */
+function sessionErrored(id: string): boolean {
+  const items = useAgent.getState().sessions[id]?.items ?? [];
+  for (let i = items.length - 1; i >= 0; i--) {
+    const it = items[i];
+    if (it.kind === "error") return true;
+    if (it.kind === "done") return it.isError;
+  }
+  return false;
+}
+
+function orchError(lang: Lang): string {
+  return messages[lang]?.orchError ?? messages.en.orchError;
 }
 
 function rolePrompt(role: string, task: string): string {

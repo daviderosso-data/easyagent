@@ -175,6 +175,9 @@ async function runTurnBody(params: RunParams): Promise<void> {
   let sawResult = false;
   let currentSessionId = sessionId ?? "";
   let activeModel = model ?? "";
+  // Id of the assistant message currently streaming (from message_start), so
+  // partial text/thinking deltas accumulate under one item on the client.
+  let streamMsgId = "";
 
   try {
     const q = query({
@@ -195,6 +198,9 @@ async function runTurnBody(params: RunParams): Promise<void> {
         additionalDirectories: [],
         settingSources: [],
         settings: { permissions: { deny, ask } },
+        // Stream text/thinking as it is generated so long answers appear
+        // incrementally instead of arriving all at once (looking like a hang).
+        includePartialMessages: true,
         ...(sandbox ? { sandbox } : {}),
         hooks: { PreToolUse: [{ hooks: [preToolGate] }] },
         abortController: abort,
@@ -219,11 +225,27 @@ async function runTurnBody(params: RunParams): Promise<void> {
         });
         // Refresh subscription rate limits while the query is live.
         await captureRateLimits(q);
+      } else if (m.type === "stream_event") {
+        // Live token deltas for the top-level turn (sub-agent internals aren't
+        // surfaced). Anthropic guarantees these deltas concatenate to the final
+        // block text, so the completed assistant message below skips text to
+        // avoid re-appending it.
+        if (m.parent_tool_use_id == null) {
+          const ev = m.event;
+          if (ev?.type === "message_start") {
+            streamMsgId = ev.message?.id ?? streamMsgId;
+          } else if (ev?.type === "content_block_delta") {
+            const d = ev.delta;
+            if (d?.type === "text_delta" && d.text) send({ type: "text", id: streamMsgId, text: d.text });
+            else if (d?.type === "thinking_delta" && d.thinking) send({ type: "thinking", id: streamMsgId, text: d.thinking });
+          }
+        }
       } else if (m.type === "assistant") {
+        const streamed = m.parent_tool_use_id == null; // text/thinking already sent as deltas
         for (const block of m.message.content) {
-          if (block.type === "text" && block.text) send({ type: "text", id: m.message.id, text: block.text });
-          else if (block.type === "thinking" && block.thinking) send({ type: "thinking", id: m.message.id, text: block.thinking });
-          else if (block.type === "tool_use") send({ type: "tool_use", id: block.id, name: block.name, input: block.input ?? {} });
+          if (block.type === "tool_use") send({ type: "tool_use", id: block.id, name: block.name, input: block.input ?? {} });
+          else if (!streamed && block.type === "text" && block.text) send({ type: "text", id: m.message.id, text: block.text });
+          else if (!streamed && block.type === "thinking" && block.thinking) send({ type: "thinking", id: m.message.id, text: block.thinking });
         }
       } else if (m.type === "user") {
         const content = m.message?.content;

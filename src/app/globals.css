@@ -210,6 +210,36 @@ button {
 .orch-error {
   background: var(--del-bg);
 }
+.orch-cancelled {
+  background: var(--panel-2, var(--brand-soft));
+}
+/* "Experimental" tag on the orchestrator banner and modal title. */
+.orch-badge-exp {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--muted, var(--ink));
+  background: var(--bg);
+  flex-shrink: 0;
+}
+.orch-stop {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.orch-exp-note {
+  font-size: 12px;
+  color: var(--muted, var(--ink));
+  background: var(--brand-soft);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin: 8px 0;
+}
 .orch-banner-row {
   display: flex;
   align-items: center;

@@ -12,22 +12,22 @@ const BodySchema = z.object({
 });
 
 export async function POST(req: Request) {
-  if (!tokenValid(req)) return Response.json({ error: "Non autorizzato" }, { status: 403 });
+  if (!tokenValid(req)) return Response.json({ error: "Unauthorized session." }, { status: 403 });
 
   let body: z.infer<typeof BodySchema>;
   try {
     body = BodySchema.parse(await req.json());
   } catch {
-    return Response.json({ error: "Richiesta non valida" }, { status: 400 });
+    return Response.json({ error: "Invalid request." }, { status: 400 });
   }
   const turn = sessionManager.get(body.turnId);
   if (!turn) {
-    return Response.json({ error: "Turno non trovato" }, { status: 404 });
+    return Response.json({ error: "Turn not found." }, { status: 404 });
   }
 
   const resolve = turn.pendingApprovals.get(body.approvalId);
   if (!resolve) {
-    return Response.json({ error: "Richiesta di approvazione non trovata" }, { status: 404 });
+    return Response.json({ error: "Approval request not found." }, { status: 404 });
   }
   turn.pendingApprovals.delete(body.approvalId);
 
@@ -42,7 +42,7 @@ export async function POST(req: Request) {
     }
     resolve({ allow: true });
   } else {
-    resolve({ allow: false, message: "L'utente ha rifiutato questa azione." });
+    resolve({ allow: false, message: "The user declined this action." });
   }
 
   return Response.json({ ok: true });

@@ -66,7 +66,7 @@ class SessionManager {
     if (!turn) return;
     // Fail-closed: reject any still-pending approvals so the SDK unblocks.
     for (const resolve of turn.pendingApprovals.values()) {
-      resolve({ allow: false, message: "Sessione terminata." });
+      resolve({ allow: false, message: "Session ended." });
     }
     turn.pendingApprovals.clear();
     this.turns.delete(turnId);
