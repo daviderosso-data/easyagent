@@ -1,12 +1,18 @@
 import type { AgentEvent, SendRequest } from "@/lib/agent-events";
+import { messages } from "@/i18n/messages";
 
-/** POST a prompt and stream back agent events (SSE over fetch). */
+/** POST a prompt and stream back agent events (SSE over fetch).
+ *  `onTurnId` fires as soon as the response headers arrive — before any SSE
+ *  event — so Stop can target the server turn during SDK startup too. */
 export async function streamAgent(
   body: SendRequest,
   onEvent: (e: AgentEvent) => void,
   signal?: AbortSignal,
   token?: string | null,
+  onTurnId?: (turnId: string) => void,
 ): Promise<void> {
+  const m = messages[body.lang] ?? messages.en;
+
   let res: Response;
   try {
     res = await fetch("/api/chat/send", {
@@ -16,14 +22,17 @@ export async function streamAgent(
       signal,
     });
   } catch {
-    onEvent({ type: "error", message: "Impossibile contattare il server locale." });
+    onEvent({ type: "error", message: m.serverUnreachable });
     return;
   }
 
   if (!res.ok || !res.body) {
-    onEvent({ type: "error", message: `Errore del server (${res.status}).` });
+    onEvent({ type: "error", message: m.serverError.replace("{status}", String(res.status)) });
     return;
   }
+
+  const turnId = res.headers.get("x-turn-id");
+  if (turnId && onTurnId) onTurnId(turnId);
 
   const reader = res.body.getReader();
   const decoder = new TextDecoder();

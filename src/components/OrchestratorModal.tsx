@@ -19,13 +19,16 @@ export function OrchestratorModal({ onClose }: { onClose: () => void }) {
     <div className="modal-backdrop" role="dialog" aria-modal="true">
       <div className="settings-modal">
         <div className="settings-head">
-          <h2>🧩 {t("orchestrateTitle")}</h2>
+          <h2>
+            🧩 {t("orchestrateTitle")} <span className="orch-badge-exp">{t("experimental")}</span>
+          </h2>
           <button className="icon-btn" onClick={onClose} aria-label={t("close")}>
             ✕
           </button>
         </div>
         <div className="settings-body">
           <p className="settings-sub">{t("orchestrateHint")}</p>
+          <p className="orch-exp-note">⚠️ {t("orchExperimentalNote")}</p>
           <textarea
             className="composer-input orch-goal"
             rows={4}

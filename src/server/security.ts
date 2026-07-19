@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { statSync } from "node:fs";
+import { realpathSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { withinProjectsRoot } from "@/server/projects";
 
@@ -53,16 +53,22 @@ export function validateCwd(cwd: unknown): CwdCheck {
   if (typeof cwd !== "string" || cwd.trim() === "") {
     return { ok: false, error: "Invalid folder." };
   }
-  const p = resolve(cwd);
-  if (!withinProjectsRoot(p)) {
+  if (!withinProjectsRoot(resolve(cwd))) {
     return { ok: false, error: "The folder must be inside your easyclaude folder." };
   }
+  // Resolve symlinks and re-check: a link inside the root must not point the
+  // agent's working directory outside it. The real path is what gets used.
+  let p: string;
   try {
+    p = realpathSync(resolve(cwd));
     if (!statSync(p).isDirectory()) {
       return { ok: false, error: "That path is not a folder." };
     }
   } catch {
     return { ok: false, error: "That folder does not exist." };
+  }
+  if (!withinProjectsRoot(p)) {
+    return { ok: false, error: "The folder must be inside your easyclaude folder." };
   }
   return { ok: true, path: p };
 }

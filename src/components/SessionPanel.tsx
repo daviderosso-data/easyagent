@@ -77,8 +77,21 @@ export function SessionPanel({ id, onChangeFolder }: { id: string; onChangeFolde
         )}
       </div>
       <div className="panel-body">
-        <Transcript id={id} />
-        <Composer id={id} />
+        {cwd ? (
+          <>
+            <Transcript id={id} />
+            <Composer id={id} />
+          </>
+        ) : (
+          <div className="empty">
+            <div className="empty-emoji">📁</div>
+            <h2>{t("noProjectTitle")}</h2>
+            <p>{t("noProjectBody")}</p>
+            <button className="btn btn-primary" onClick={() => onChangeFolder(id)}>
+              {t("noProjectAction")}
+            </button>
+          </div>
+        )}
       </div>
       <ApprovalModal id={id} />
     </section>

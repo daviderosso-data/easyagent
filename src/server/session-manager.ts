@@ -32,6 +32,26 @@ class SessionManager {
     return turn;
   }
 
+  /** Atomically reserve a concurrency slot and register the turn. The size
+   *  check and the insert happen in one synchronous step, so parallel requests
+   *  can't over-commit past `max`. Returns null when the cap is reached. */
+  tryCreate(turnId: string, abort: AbortController, max: number): Turn | null {
+    if (this.turns.size >= max) return null;
+    return this.create(turnId, abort);
+  }
+
+  /** Best-effort interrupt + abort. Used by Stop and by client disconnects. */
+  abort(turnId: string): void {
+    const turn = this.turns.get(turnId);
+    if (!turn) return;
+    try {
+      turn.query?.interrupt?.();
+    } catch {
+      /* best effort */
+    }
+    turn.abort.abort();
+  }
+
   get(turnId: string): Turn | undefined {
     return this.turns.get(turnId);
   }
@@ -46,7 +66,7 @@ class SessionManager {
     if (!turn) return;
     // Fail-closed: reject any still-pending approvals so the SDK unblocks.
     for (const resolve of turn.pendingApprovals.values()) {
-      resolve({ allow: false, message: "Sessione terminata." });
+      resolve({ allow: false, message: "Session ended." });
     }
     turn.pendingApprovals.clear();
     this.turns.delete(turnId);

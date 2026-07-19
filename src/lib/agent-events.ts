@@ -13,8 +13,10 @@ export interface SendRequest {
   effort?: Effort;
   /** Role persona appended to the system prompt (orchestrator role panels). */
   systemAppend?: string;
-  /** Orchestration turn → use the autonomous-but-safe security config. */
-  orchestration?: boolean;
+  /** Server-minted grant (from /api/orchestrate) → use the autonomous-but-safe
+   *  orchestration security config. The server validates it; a bare flag from
+   *  the client can never downgrade the profile. */
+  orchestrationGrant?: string;
 }
 
 /** Events streamed from the server (SSE) to the browser. */

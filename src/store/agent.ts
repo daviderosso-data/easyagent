@@ -6,6 +6,7 @@ import type { AppSettings, Lang, Theme, SecurityConfig } from "@/lib/settings";
 import type { Effort } from "@/lib/models";
 import { DEFAULT_SETTINGS, PROFILES, detectProfile } from "@/lib/settings";
 import { streamAgent } from "@/lib/sse-client";
+import { messages } from "@/i18n/messages";
 
 export type Item =
   | { kind: "user"; id: string; text: string }
@@ -42,21 +43,24 @@ export interface Session {
   sessionId: string | null;
   model: string | null;
   apiKeySource: string | null;
-  pending: PendingApproval | null;
+  /** Approval requests waiting for the user, oldest first. The SDK can issue
+   *  parallel tool calls, so this must be a queue — a single slot would lose
+   *  requests and park the turn forever. */
+  pending: PendingApproval[];
   abortController: AbortController | null;
   /** Orchestrator role label (shown in the panel header). */
   roleLabel?: string;
   /** Role persona appended to the system prompt for this session's turns. */
   systemAppend?: string;
-  /** Orchestration turn → autonomous-but-safe security config. */
-  orchestration?: boolean;
+  /** Server-minted grant for orchestration turns (autonomous-but-safe config). */
+  orchestrationGrant?: string;
   /** Per-chat model override (null/undefined = default). */
   selModel?: string | null;
   /** Per-chat reasoning effort (undefined = default). */
   effort?: Effort;
 }
 
-export type OrchPhase = "idle" | "planning" | "working" | "reviewing" | "done" | "error";
+export type OrchPhase = "idle" | "planning" | "working" | "reviewing" | "done" | "error" | "cancelled";
 
 export interface OrchState {
   active: boolean;
@@ -68,6 +72,8 @@ export interface OrchState {
   projectRoot: string;
   runInstructions: string;
   error: string;
+  /** Set by stopOrchestration; the round loop checks it and bails out. */
+  cancelRequested: boolean;
 }
 
 const IDLE_ORCH: OrchState = {
@@ -80,6 +86,7 @@ const IDLE_ORCH: OrchState = {
   projectRoot: "",
   runInstructions: "",
   error: "",
+  cancelRequested: false,
 };
 
 export interface RoleSpec {
@@ -111,6 +118,7 @@ interface AppState {
   removePanel: (id: string) => void;
   setActivePanel: (id: string) => void;
   runOrchestration: (goal: string) => Promise<void>;
+  stopOrchestration: () => void;
   dismissOrchestration: () => void;
 
   setCwd: (id: string, cwd: string) => void;
@@ -140,7 +148,7 @@ function newSession(cwd: string): Session {
     sessionId: null,
     model: null,
     apiKeySource: null,
-    pending: null,
+    pending: [],
     abortController: null,
   };
 }
@@ -233,9 +241,35 @@ export const useAgent = create<AppState>((set, get) => ({
 
   dismissOrchestration: () => set({ orch: IDLE_ORCH }),
 
+  stopOrchestration: () => {
+    const { orch } = get();
+    if (!orch.active) return;
+    // Stop every panel this orchestration owns (aborts the server turns too),
+    // then flag the round loop to bail out on its next checkpoint.
+    for (const id of [orch.orchestratorPanel, ...orch.rolePanels].filter(Boolean)) {
+      void get().stop(id);
+    }
+    set((s) => ({ orch: { ...s.orch, active: false, cancelRequested: true, phase: "cancelled" } }));
+  },
+
   async runOrchestration(goal) {
     const st0 = get();
     if (st0.orch.active) return;
+    // Don't orphan turns already running in existing panels: abort them first,
+    // otherwise the layout replacement below drops their controllers and the
+    // server turns keep occupying concurrency slots until restart.
+    for (const s of Object.values(st0.sessions)) {
+      if (s.running) {
+        s.abortController?.abort();
+        if (s.turnId) {
+          void fetch("/api/chat/stop", {
+            method: "POST",
+            headers: authHeaders(st0.token),
+            body: JSON.stringify({ turnId: s.turnId }),
+          }).catch(() => {});
+        }
+      }
+    }
     set({ orch: { ...IDLE_ORCH, active: true, phase: "planning" } });
 
     // 1) Plan — server creates a NEW project + role subfolders + plan files.
@@ -254,12 +288,13 @@ export const useAgent = create<AppState>((set, get) => ({
       return;
     }
     const { projectRoot, projectName, brief } = res;
+    const grant: string | undefined = typeof res.grant === "string" ? res.grant : undefined;
     const roleData: { role: string; folder: string; task: string }[] = res.roles;
 
     // 2) Build panels: orchestrator + one per role.
     const orch = newSession(projectRoot);
     orch.roleLabel = "Orchestrator";
-    orch.orchestration = true;
+    orch.orchestrationGrant = grant;
     orch.systemAppend =
       `You are the ORCHESTRATOR of the project "${projectName}". Specialist agents each work in a ` +
       `sub-folder. Shared brief:\n\n${brief}\n\nYou work at the project root and integrate/test the whole project.`;
@@ -270,7 +305,7 @@ export const useAgent = create<AppState>((set, get) => ({
     roleData.forEach((r) => {
       const s = newSession(r.folder);
       s.roleLabel = r.role;
-      s.orchestration = true;
+      s.orchestrationGrant = grant;
       s.systemAppend =
         `You are the "${r.role}" specialist on the project "${projectName}", coordinated by an ` +
         `orchestrator. Work ONLY inside your assigned folder. Shared brief:\n\n${brief}`;
@@ -288,14 +323,24 @@ export const useAgent = create<AppState>((set, get) => ({
     pushAssistant(orch.id, `Project "${projectName}" created.\n\n${brief}\n\nDispatching ${roleData.length} agents…`);
 
     // 3) Round loop: roles work → orchestrator reviews → done or dispatch fixes.
+    const cancelled = () => get().orch.cancelRequested;
     let dispatch = roleData.map((r, i) => ({ panelId: rolePanels[i], prompt: rolePrompt(r.role, r.task) }));
     const MAX_ROUNDS = 3;
     for (let round = 1; round <= MAX_ROUNDS; round++) {
       set((s) => ({ orch: { ...s.orch, phase: "working", round } }));
       await Promise.all(dispatch.map((d) => get().send(d.panelId, d.prompt)));
+      if (cancelled()) return; // stopOrchestration already set phase "cancelled"
 
       set((s) => ({ orch: { ...s.orch, phase: "reviewing" } }));
       await get().send(orch.id, reviewPrompt(round));
+      if (cancelled()) return;
+
+      // A failed review turn must NOT be read as success: bail out honestly
+      // instead of concluding "done" on empty/stale text.
+      if (sessionErrored(orch.id)) {
+        set((s) => ({ orch: { ...s.orch, phase: "error", active: false, error: orchError(get().lang) } }));
+        return;
+      }
       const decision = parseDecision(lastAssistantText(orch.id));
 
       if (decision.status === "done" || round === MAX_ROUNDS) {
@@ -336,9 +381,9 @@ export const useAgent = create<AppState>((set, get) => ({
       items: [],
       sessionId: null,
       turnId: null,
-      pending: null,
+      pending: [],
       roleLabel: undefined,
-      orchestration: undefined,
+      orchestrationGrant: undefined,
     }));
     touchProjectApi(projectPath, get().token);
     scheduleSaveWorkspace();
@@ -351,9 +396,9 @@ export const useAgent = create<AppState>((set, get) => ({
       items: [],
       sessionId,
       turnId: null,
-      pending: null,
+      pending: [],
       roleLabel: undefined,
-      orchestration: undefined,
+      orchestrationGrant: undefined,
     }));
     touchProjectApi(projectPath, get().token);
     scheduleSaveWorkspace();
@@ -403,7 +448,7 @@ export const useAgent = create<AppState>((set, get) => ({
     }
   },
 
-  resetSession: (id) => updateSession(id, (s) => ({ ...s, items: [], sessionId: null, turnId: null, pending: null })),
+  resetSession: (id) => updateSession(id, (s) => ({ ...s, items: [], sessionId: null, turnId: null, pending: [] })),
 
   async send(id, prompt) {
     const st = get();
@@ -414,7 +459,7 @@ export const useAgent = create<AppState>((set, get) => ({
       ...s,
       items: [...s.items, { kind: "user", id: nid(), text: prompt }],
       running: true,
-      pending: null,
+      pending: [],
       abortController,
     }));
     const onEvent = (e: AgentEvent) => reduce(id, e);
@@ -427,11 +472,14 @@ export const useAgent = create<AppState>((set, get) => ({
         model: session.selModel ?? undefined,
         effort: session.effort,
         systemAppend: session.systemAppend,
-        orchestration: session.orchestration,
+        orchestrationGrant: session.orchestrationGrant,
       },
       onEvent,
       abortController.signal,
       st.token,
+      // Arrives with the response headers, before any SSE event: makes Stop
+      // able to reach the server turn even during SDK startup.
+      (turnId) => updateSession(id, (s) => ({ ...s, turnId })),
     );
     updateSession(id, (s) => ({ ...s, running: false, abortController: null }));
   },
@@ -447,25 +495,40 @@ export const useAgent = create<AppState>((set, get) => ({
       }
     }
     session?.abortController?.abort();
-    updateSession(id, (s) => ({ ...s, running: false }));
+    // The dying turn auto-denies its parked approvals server-side; drop the
+    // local queue so no stale modal outlives the turn.
+    updateSession(id, (s) => ({ ...s, running: false, pending: [] }));
   },
 
   async respondApproval(id, decision, alwaysAllow) {
     const { sessions, token } = get();
-    const pending = sessions[id]?.pending;
-    if (!pending) return;
-    updateSession(id, (s) => ({ ...s, pending: null }));
+    const pending = sessions[id]?.pending[0];
+    if (!pending || approvalsInFlight.has(pending.approvalId)) return;
+    approvalsInFlight.add(pending.approvalId);
+    let settled = false;
     try {
-      await fetch("/api/chat/approve", {
+      const res = await fetch("/api/chat/approve", {
         method: "POST",
         headers: authHeaders(token),
         body: JSON.stringify({ turnId: pending.turnId, approvalId: pending.approvalId, decision, alwaysAllow }),
       });
+      // Delivered (200) or stale (404: turn/approval already gone) → done with
+      // this entry. Anything else keeps the modal so the user can retry —
+      // clearing it optimistically would park the turn with no way to answer.
+      settled = res.ok || res.status === 404;
     } catch {
-      /* ignore */
+      settled = false;
+    } finally {
+      approvalsInFlight.delete(pending.approvalId);
+    }
+    if (settled) {
+      updateSession(id, (s) => ({ ...s, pending: s.pending.filter((p) => p.approvalId !== pending.approvalId) }));
     }
   },
 }));
+
+/** approvalIds with an /api/chat/approve POST in flight (double-click guard). */
+const approvalsInFlight = new Set<string>();
 
 function updateSession(id: string, updater: (s: Session) => Session) {
   useAgent.setState((st) => {
@@ -575,7 +638,10 @@ function reduce(id: string, e: AgentEvent) {
     case "approval_request":
       updateSession(id, (s) => ({
         ...s,
-        pending: { approvalId: e.approvalId, turnId: e.turnId, toolName: e.toolName, input: e.input, title: e.title, risk: e.risk, severity: e.severity },
+        pending: [
+          ...s.pending,
+          { approvalId: e.approvalId, turnId: e.turnId, toolName: e.toolName, input: e.input, title: e.title, risk: e.risk, severity: e.severity },
+        ],
       }));
       break;
     case "done":
@@ -603,6 +669,23 @@ function lastAssistantText(id: string): string {
     if (items[i].kind === "assistant") return (items[i] as Extract<Item, { kind: "assistant" }>).text;
   }
   return "";
+}
+
+/** True if the session's most recent turn ended in an error (an error item or
+ *  a done item with isError) — used so a failed orchestrator review isn't
+ *  mistaken for a successful "done". */
+function sessionErrored(id: string): boolean {
+  const items = useAgent.getState().sessions[id]?.items ?? [];
+  for (let i = items.length - 1; i >= 0; i--) {
+    const it = items[i];
+    if (it.kind === "error") return true;
+    if (it.kind === "done") return it.isError;
+  }
+  return false;
+}
+
+function orchError(lang: Lang): string {
+  return messages[lang]?.orchError ?? messages.en.orchError;
 }
 
 function rolePrompt(role: string, task: string): string {

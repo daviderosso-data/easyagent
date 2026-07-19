@@ -10,13 +10,27 @@ const RATE_FILE = join(DIR, "ratelimits.json");
 const g = globalThis as unknown as { __ccw_start?: number };
 const START_TS: number = (g.__ccw_start ??= Date.now());
 
+export type UsageStatus = "ok" | "error" | "aborted";
+
+/** One recorded turn. Fields after `model` were added in schema v2 and are
+ *  optional so old (v1) lines still parse; readers default them. */
 export interface UsageEvent {
+  v?: number;
   ts: number;
   costUsd: number;
   inTok: number;
   outTok: number;
   cacheTok: number;
   model: string;
+  provider?: string;
+  /** Project folder name (basename of the turn's cwd) for per-project breakdowns. */
+  project?: string;
+  sessionId?: string;
+  effort?: string;
+  durationMs?: number;
+  numTurns?: number;
+  status?: UsageStatus;
+  subtype?: string;
 }
 
 export interface RateLimitWindow {

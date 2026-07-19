@@ -2,10 +2,17 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { realWithinProjectsRoot, PROJECTS_ROOT } from "@/server/projects";
 
-const IGNORE = new Set([
+export const IGNORE = new Set([
   "node_modules", ".git", ".next", "dist", "build", ".turbo", ".cache", ".DS_Store", "coverage",
 ]);
 const MAX_FILE_BYTES = 500_000;
+
+/** Heuristic binary sniff: a NUL byte in the first 8KB means "not text". */
+export function isBinaryBuffer(buf: Buffer): boolean {
+  const n = Math.min(buf.length, 8000);
+  for (let i = 0; i < n; i++) if (buf[i] === 0) return true;
+  return false;
+}
 
 export interface Entry {
   name: string;
@@ -43,6 +50,8 @@ export interface FileResult {
   name?: string;
   content?: string;
   tooBig?: boolean;
+  binary?: boolean;
+  size?: number;
 }
 
 export function readFileSafe(path: unknown): FileResult {
@@ -51,8 +60,11 @@ export function readFileSafe(path: unknown): FileResult {
   try {
     const st = statSync(abs);
     if (!st.isFile()) return { ok: false };
-    if (st.size > MAX_FILE_BYTES) return { ok: true, path: abs, name: basename(abs), content: "", tooBig: true };
-    return { ok: true, path: abs, name: basename(abs), content: readFileSync(abs, "utf8"), tooBig: false };
+    const base = { ok: true as const, path: abs, name: basename(abs), size: st.size };
+    if (st.size > MAX_FILE_BYTES) return { ...base, content: "", tooBig: true };
+    const buf = readFileSync(abs);
+    if (isBinaryBuffer(buf)) return { ...base, content: "", binary: true };
+    return { ...base, content: buf.toString("utf8"), tooBig: false };
   } catch {
     return { ok: false };
   }

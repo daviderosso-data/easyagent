@@ -1,5 +1,7 @@
 # easyclaude
 
+[![CI](https://github.com/daviderosso-data/easyclaude/actions/workflows/ci.yml/badge.svg)](https://github.com/daviderosso-data/easyclaude/actions/workflows/ci.yml)
+
 A local web interface for [Claude Code](https://claude.com/claude-code) — the full coding agent — for
 people who don't use a terminal. Every file change appears as a visual diff with one-click approval; work
 stays inside your project folder and runs on your own subscription. Includes security profiles, parallel
@@ -21,8 +23,9 @@ browser; nothing is stored by the app), and confines the agent to a single proje
 ## Features
 
 - Full Claude Code agent with a visual UI: streaming activity, file tree, diffs, command output.
-- Three security profiles (Locked / Standard / Open) with an OS-level sandbox, a deny-list for destructive
-  commands, secret-file protection, and per-command confirmations.
+- Three security profiles (Locked / Standard / Open) with an OS-level sandbox (macOS), a deny-list for
+  destructive commands, secret-file protection, and per-command confirmations. On Windows there is no OS
+  sandbox: enforcement relies on the command filter and deny rules.
 - Multi-agent orchestrator: describe a goal and it splits the work into roles (e.g. backend, frontend,
   design), runs them in parallel in their own sub-folders, then integrates and tests the result.
 - Project management: a dashboard to create, open, rename and delete projects, with real conversation
@@ -36,7 +39,7 @@ browser; nothing is stored by the app), and confines the agent to a single proje
 
 ## Requirements
 
-- [Node.js](https://nodejs.org) 18 or newer.
+- [Node.js](https://nodejs.org) 20.9 or newer.
 - [Claude Code](https://claude.com/claude-code) installed and signed in with your Claude subscription
   (Pro/Max). You can sign in from inside the app (Settings → Account); easyclaude reuses Claude Code's own
   login and never sees your password or API key.
@@ -60,6 +63,18 @@ npm run dev        # development, at http://127.0.0.1:3000
 npm run build && npm start
 ```
 
+Quality checks (also run in CI on macOS and Windows):
+
+```bash
+npm run typecheck  # tsc --noEmit
+npm run lint       # ESLint (flat config)
+npm run test       # vitest (watch); npm run test:run for a single pass
+```
+
+The test suite is a regression harness for the security and turn-lifecycle
+code — secret detection, working-directory confinement, the concurrency-slot
+lifecycle, and orchestration grants live in `tests/`.
+
 ## Security profiles
 
 Everything is configurable in Settings → Security. Three presets, each tweakable:
@@ -70,8 +85,10 @@ Everything is configurable in Settings → Security. Three presets, each tweakab
 | Standard | Same hard blocks and sandbox, but installs and internet ask a normal yes/no and file edits apply automatically. |
 | Open | No limits and no confirmations (behind a warning). Full freedom, full risk. |
 
-The hard gates (block-list, PreToolUse hook, OS sandbox) apply at every profile, including Open's
-destructive floor — verified to hold even in autonomous/bypass mode.
+In Locked and Standard the hard gates (block-list, PreToolUse hook, OS sandbox on macOS) cannot be
+bypassed by the agent, even in autonomous mode. **Open disables all of them by design** — it really means
+full freedom. Multi-agent orchestration runs always keep a safety floor regardless of profile: sandbox on,
+catastrophic commands and secret reads blocked.
 
 ## Privacy and security
 
@@ -79,8 +96,9 @@ destructive floor — verified to hold even in autonomous/bypass mode.
   request.
 - Uses your own Claude Code credentials (subscription or API key); the app never sees or stores them, and
   strips API-key environment variables so turns use your subscription.
-- The agent is confined to `~/easyclaude` and cannot read your secrets (`~/.ssh`, `~/.aws`, `.env`, …).
-  Your sensitive environment variables are never passed to the agent.
+- In Locked and Standard the agent is confined to `~/easyclaude` and cannot read your secrets (`~/.ssh`,
+  `~/.aws`, `.env`, `.netrc`, `.npmrc`, …). Your sensitive environment variables are never passed to the
+  agent. On macOS this is enforced by the OS sandbox too; on Windows by the command filter and deny rules.
 
 ## How it works
 

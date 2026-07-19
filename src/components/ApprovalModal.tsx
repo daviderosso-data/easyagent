@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAgent } from "@/store/agent";
 import { useT, useLang, describeTool, riskReason } from "@/i18n";
 import { DiffView } from "@/components/DiffView";
@@ -8,11 +8,23 @@ import { DiffView } from "@/components/DiffView";
 const EDIT_TOOLS = new Set(["Edit", "MultiEdit", "Write"]);
 
 export function ApprovalModal({ id }: { id: string }) {
-  const pending = useAgent((s) => s.sessions[id]?.pending);
+  // Head of the approval queue: requests are answered one at a time, oldest
+  // first (the SDK can issue parallel tool calls).
+  const pending = useAgent((s) => s.sessions[id]?.pending[0]);
+  const queued = useAgent((s) => s.sessions[id]?.pending.length ?? 0);
   const respond = useAgent((s) => s.respondApproval);
   const t = useT();
   const lang = useLang();
   const [typed, setTyped] = useState("");
+
+  // Reset the type-to-confirm field whenever the request at the head changes.
+  // The modal stays mounted for the panel's whole life, so without this a typed
+  // CONFIRM would survive a Stop (or queue advance) and pre-satisfy the NEXT
+  // red action — approving a dangerous op with no typing.
+  const headId = pending?.approvalId;
+  useEffect(() => {
+    setTyped("");
+  }, [headId]);
 
   if (!pending) return null;
 
@@ -37,6 +49,7 @@ export function ApprovalModal({ id }: { id: string }) {
           <span className={`modal-badge ${isRed ? "modal-badge-red" : ""}`}>
             {isRed ? t("delicate") : t("needsOk")}
           </span>
+          {queued > 1 && <span className="modal-badge">+{queued - 1} {t("moreApprovals")}</span>}
           <h2>{description.split("\n")[0]}</h2>
         </div>
 
