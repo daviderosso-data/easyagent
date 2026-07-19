@@ -11,6 +11,8 @@
   --brand: #d1623f;
   --brand-ink: #ffffff;
   --brand-soft: #f6ece8;
+  /* Chart mark color — validated for contrast/lightness per surface. */
+  --chart-mark: #d1623f;
   --ok: #2f9e5f;
   --warn: #d1453b;
   --add-bg: #eaf6ee;
@@ -35,6 +37,7 @@
     --line: #313236;
     --brand: #e07a5a;
     --brand-soft: #33261f;
+    --chart-mark: #dc6d47;
     --add-bg: #16311f;
     --add-ink: #57c185;
     --del-bg: #3a201e;
@@ -51,6 +54,7 @@
   --line: #313236;
   --brand: #e07a5a;
   --brand-soft: #33261f;
+  --chart-mark: #dc6d47;
   --add-bg: #16311f;
   --add-ink: #57c185;
   --del-bg: #3a201e;
@@ -1795,5 +1799,216 @@ button {
 @media (max-width: 560px) {
   .usage-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* ---- Analytics panel ---- */
+.analytics-modal {
+  background: var(--panel);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  max-width: 860px;
+  width: 100%;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.analytics-loading {
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+.analytics-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+}
+.chip-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.chip {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 12.5px;
+}
+.chip.active {
+  background: var(--brand-soft);
+  color: var(--brand);
+  border-color: var(--brand);
+  font-weight: 600;
+}
+
+.tschart-wrap {
+  position: relative;
+  margin-top: 12px;
+}
+.tschart {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.tschart-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 120px;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+.ts-grid {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.ts-tick {
+  fill: var(--ink-soft);
+  font-size: 10.5px;
+  font-family: var(--sans);
+}
+.ts-bar {
+  fill: var(--chart-mark);
+}
+.ts-bar.hot {
+  filter: brightness(1.12);
+}
+.tschart svg rect:focus,
+.tschart rect:focus {
+  outline: none;
+}
+.tschart-tooltip {
+  position: absolute;
+  top: 4px;
+  transform: translateX(-50%);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  padding: 8px 11px;
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 5;
+}
+.tschart-tooltip .tt-date {
+  font-weight: 700;
+  margin-bottom: 3px;
+}
+.tschart-tooltip .tt-row {
+  color: var(--ink-soft);
+  margin: 1px 0;
+}
+.tschart-tooltip .tt-row b {
+  color: var(--ink);
+}
+.tschart-tooltip .tt-bad,
+.tschart-tooltip .tt-bad b {
+  color: var(--warn);
+}
+
+.bd-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.bd-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+.bd-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bd-figures {
+  color: var(--ink-soft);
+  font-size: 12.5px;
+  text-align: right;
+  flex-shrink: 0;
+}
+.bd-figures b {
+  color: var(--ink);
+}
+.bd-bad {
+  color: var(--warn);
+}
+.bd-soft {
+  color: var(--ink-soft);
+}
+.bd-track {
+  height: 6px;
+  background: var(--panel-2);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.bd-fill {
+  height: 100%;
+  background: var(--chart-mark);
+  border-radius: 999px;
+}
+
+.status-strip {
+  display: flex;
+  gap: 2px;
+  height: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+}
+.status-seg {
+  min-width: 4px;
+}
+.seg-ok {
+  background: var(--ok);
+}
+.seg-error {
+  background: var(--warn);
+}
+.seg-aborted {
+  background: var(--ink-soft);
+}
+.status-legend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+.legend-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.legend-chip b {
+  color: var(--ink);
+}
+.legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+@media (max-width: 560px) {
+  .analytics-toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .bd-head {
+    flex-direction: column;
+    gap: 2px;
+  }
+  .bd-figures {
+    text-align: left;
   }
 }
