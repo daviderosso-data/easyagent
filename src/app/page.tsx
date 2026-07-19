@@ -5,6 +5,7 @@ import { AppShell } from "@/components/AppShell";
 import { Sidebar } from "@/components/Sidebar";
 import { PanelsGrid } from "@/components/PanelsGrid";
 import { SettingsPanel } from "@/components/SettingsPanel";
+import { AnalyticsPanel } from "@/components/AnalyticsPanel";
 import { ProjectsPanel } from "@/components/ProjectsPanel";
 import { OrchestratorModal } from "@/components/OrchestratorModal";
 import { OrchestrationBanner } from "@/components/OrchestrationBanner";
@@ -16,6 +17,7 @@ export default function Home() {
   const initWorkspace = useAgent((s) => s.initWorkspace);
   const addPanel = useAgent((s) => s.addPanel);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [analyticsOpen, setAnalyticsOpen] = useState(false);
   const [projectsFor, setProjectsFor] = useState<string | null>(null);
   const [orchestrateOpen, setOrchestrateOpen] = useState(false);
 
@@ -45,11 +47,13 @@ export default function Home() {
             onAddPanel={onAddPanel}
             onOrchestrate={() => setOrchestrateOpen(true)}
             onProjects={() => setProjectsFor(useAgent.getState().activePanel)}
+            onAnalytics={() => setAnalyticsOpen(true)}
           />
           <PanelsGrid onChangeFolder={setProjectsFor} />
         </div>
       </AppShell>
       {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
+      {analyticsOpen && <AnalyticsPanel onClose={() => setAnalyticsOpen(false)} />}
       {projectsFor && <ProjectsPanel panelId={projectsFor} onClose={() => setProjectsFor(null)} />}
       {orchestrateOpen && <OrchestratorModal onClose={() => setOrchestrateOpen(false)} />}
     </>

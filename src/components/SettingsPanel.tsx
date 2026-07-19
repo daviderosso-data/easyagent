@@ -10,22 +10,6 @@ interface AccountData {
   email?: string;
   subscriptionType?: string;
 }
-interface Agg {
-  turns: number;
-  costUsd: number;
-  inTok: number;
-  outTok: number;
-}
-interface UsageData {
-  session: Agg;
-  week: Agg;
-  total: Agg;
-  rateLimits: {
-    subscriptionType: string | null;
-    fiveHour: { utilization: number | null; resetsAt: string | null } | null;
-    sevenDay: { utilization: number | null; resetsAt: string | null } | null;
-  } | null;
-}
 
 export function SettingsPanel({ onClose }: { onClose: () => void }) {
   const t = useT();
@@ -45,28 +29,14 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [account, setAccount] = useState<AccountData | null>(null);
   const [accBusy, setAccBusy] = useState<string | null>(null);
-  const [usage, setUsage] = useState<UsageData | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
 
   const confirmWord = t("confirmWord");
   const headers = (): Record<string, string> => ({ "content-type": "application/json", ...(token ? { "x-ccw-token": token } : {}) });
 
   const refreshAccount = () => fetch("/api/account/status").then((r) => r.json()).then(setAccount).catch(() => {});
-  const refreshUsage = () => fetch("/api/usage").then((r) => r.json()).then(setUsage).catch(() => {});
-  const doRefreshLimits = async () => {
-    setRefreshing(true);
-    try {
-      const r = await fetch("/api/usage/refresh", { method: "POST", headers: headers() });
-      setUsage(await r.json());
-    } catch {
-      /* ignore */
-    }
-    setRefreshing(false);
-  };
 
   useEffect(() => {
     refreshAccount();
-    refreshUsage();
   }, []);
 
   const chooseProfile = (p: SecurityProfile) => {
@@ -228,34 +198,6 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
             )}
             {accBusy === "login" && <p className="settings-sub">{t("loginHint")}</p>}
           </section>
-
-          {/* -------- Usage -------- */}
-          <section className="settings-section">
-            <h3>📊 {t("secUsage")}</h3>
-            {usage && (
-              <div className="usage-grid">
-                <UsageCol title={t("usageSession")} a={usage.session} />
-                <UsageCol title={t("usageWeek")} a={usage.week} />
-                <UsageCol title={t("usageTotal")} a={usage.total} />
-              </div>
-            )}
-            <p className="settings-sub">{t("usageEstimatedNote")}</p>
-
-            <div className="limits-header">
-              <h4 className="limits-title">{t("limitsTitle")}</h4>
-              <button className="btn btn-soft btn-sm" disabled={refreshing} onClick={doRefreshLimits}>
-                {refreshing ? t("refreshing") : `↻ ${t("refresh")}`}
-              </button>
-            </div>
-            {usage?.rateLimits && (usage.rateLimits.fiveHour || usage.rateLimits.sevenDay) ? (
-              <div className="limits">
-                {usage.rateLimits.fiveHour && <LimitBar label={t("limit5h")} win={usage.rateLimits.fiveHour} />}
-                {usage.rateLimits.sevenDay && <LimitBar label={t("limit7d")} win={usage.rateLimits.sevenDay} />}
-              </div>
-            ) : (
-              <p className="settings-sub">{t("limitsUnavailable")}</p>
-            )}
-          </section>
         </div>
       </div>
     </div>
@@ -281,44 +223,3 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
   );
 }
 
-function UsageCol({ title, a }: { title: string; a: Agg }) {
-  const t = useT();
-  return (
-    <div className="usage-col">
-      <div className="usage-col-title">{title}</div>
-      <div className="usage-metric">
-        <b>{a.turns}</b> {t("usageTurns")}
-      </div>
-      <div className="usage-metric">
-        <b>~${a.costUsd.toFixed(3)}</b> {t("usageCost")}
-      </div>
-      <div className="usage-metric">
-        <b>{((a.inTok + a.outTok) / 1000).toFixed(1)}k</b> {t("usageTokens")}
-      </div>
-    </div>
-  );
-}
-
-function LimitBar({ label, win }: { label: string; win: { utilization: number | null; resetsAt: string | null } }) {
-  const t = useT();
-  const pct = win.utilization ?? 0;
-  const reset = win.resetsAt ? new Date(win.resetsAt).toLocaleString() : null;
-  return (
-    <div className="limit">
-      <div className="limit-head">
-        <span>{label}</span>
-        <span>
-          {Math.round(pct)}% {t("limitUsed")}
-        </span>
-      </div>
-      <div className="limit-track">
-        <div className="limit-fill" style={{ width: `${Math.min(100, pct)}%` }} />
-      </div>
-      {reset && (
-        <div className="limit-reset">
-          {t("limitResets")}: {reset}
-        </div>
-      )}
-    </div>
-  );
-}

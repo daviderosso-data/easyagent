@@ -19,14 +19,23 @@ export function proxy(req: NextRequest): NextResponse {
   if (!hostAllowed(req.headers.get("host"))) return reject("Accesso non consentito.");
 
   // 2. Browser cross-site requests are refused (blocks CSRF from any website).
+  // Exemption per the standard Fetch-Metadata isolation policy: a top-level GET
+  // navigation (user following a link into the app) is safe — every mutating
+  // route is a token-gated POST — so only cross-site subresource/fetch/POST is
+  // rejected. The exemption requires the Sec-Fetch-Mode header, so legacy
+  // requests without fetch metadata still go through the Origin/Referer checks.
+  const isTopLevelGetNav =
+    req.method === "GET" &&
+    req.headers.get("sec-fetch-mode") === "navigate" &&
+    !["object", "embed"].includes(req.headers.get("sec-fetch-dest") ?? "");
   const secSite = req.headers.get("sec-fetch-site");
-  if (secSite && !["same-origin", "same-site", "none"].includes(secSite)) {
+  if (secSite && !["same-origin", "same-site", "none"].includes(secSite) && !isTopLevelGetNav) {
     return reject("Origine non consentita.");
   }
 
   // 3. Origin / Referer (when present) must point at a loopback host.
   const origin = req.headers.get("origin");
-  if (origin) {
+  if (origin && !isTopLevelGetNav) {
     try {
       if (!hostAllowed(new URL(origin).host)) return reject("Origine non consentita.");
     } catch {
@@ -34,7 +43,7 @@ export function proxy(req: NextRequest): NextResponse {
     }
   }
   const referer = req.headers.get("referer");
-  if (referer) {
+  if (referer && !isTopLevelGetNav) {
     try {
       if (!hostAllowed(new URL(referer).host)) return reject("Origine non consentita.");
     } catch {

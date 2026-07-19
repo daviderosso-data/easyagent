@@ -1,48 +1,17 @@
 import { appendFileSync, readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import type { UsageEvent, RateLimits, Aggregate } from "@/lib/usage-types";
+
+export type { UsageStatus, UsageEvent, RateLimitWindow, RateLimits, Aggregate } from "@/lib/usage-types";
 
 const DIR = join(homedir(), ".easyclaude");
-const USAGE_FILE = join(DIR, "usage.jsonl");
+export const USAGE_FILE = join(DIR, "usage.jsonl");
 const RATE_FILE = join(DIR, "ratelimits.json");
 
 // Process start marks the "current session" window for self-tracked totals.
 const g = globalThis as unknown as { __ccw_start?: number };
 const START_TS: number = (g.__ccw_start ??= Date.now());
-
-export type UsageStatus = "ok" | "error" | "aborted";
-
-/** One recorded turn. Fields after `model` were added in schema v2 and are
- *  optional so old (v1) lines still parse; readers default them. */
-export interface UsageEvent {
-  v?: number;
-  ts: number;
-  costUsd: number;
-  inTok: number;
-  outTok: number;
-  cacheTok: number;
-  model: string;
-  provider?: string;
-  /** Project folder name (basename of the turn's cwd) for per-project breakdowns. */
-  project?: string;
-  sessionId?: string;
-  effort?: string;
-  durationMs?: number;
-  numTurns?: number;
-  status?: UsageStatus;
-  subtype?: string;
-}
-
-export interface RateLimitWindow {
-  utilization: number | null;
-  resetsAt: string | null;
-}
-export interface RateLimits {
-  subscriptionType: string | null;
-  fiveHour: RateLimitWindow | null;
-  sevenDay: RateLimitWindow | null;
-  capturedAt: number;
-}
 
 function ensureDir() {
   mkdirSync(DIR, { recursive: true });
@@ -64,14 +33,6 @@ export function saveRateLimits(rl: RateLimits): void {
   } catch {
     /* best effort */
   }
-}
-
-export interface Aggregate {
-  turns: number;
-  costUsd: number;
-  inTok: number;
-  outTok: number;
-  cacheTok: number;
 }
 
 function empty(): Aggregate {
