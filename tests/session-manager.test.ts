@@ -73,3 +73,22 @@ describe("abort() interrupts and aborts", () => {
     expect(() => sessionManager.abort("nope")).not.toThrow();
   });
 });
+
+describe("anyRunningUnder()", () => {
+  it("matches exact cwd and subfolders, not sibling prefixes", () => {
+    const turn = sessionManager.tryCreate(track("under-a"), new AbortController(), 99)!;
+    turn.cwd = "/home/u/easyclaude/foo";
+    expect(sessionManager.anyRunningUnder("/home/u/easyclaude/foo")).toBe(true);
+    expect(sessionManager.anyRunningUnder("/home/u/easyclaude")).toBe(true);
+    expect(sessionManager.anyRunningUnder("/home/u/easyclaude/foobar")).toBe(false);
+    expect(sessionManager.anyRunningUnder("/home/u/easyclaude/fo")).toBe(false);
+    sessionManager.end("under-a");
+    expect(sessionManager.anyRunningUnder("/home/u/easyclaude/foo")).toBe(false);
+  });
+
+  it("ignores turns without a cwd", () => {
+    sessionManager.tryCreate(track("under-b"), new AbortController(), 99);
+    expect(sessionManager.anyRunningUnder("/anywhere")).toBe(false);
+    sessionManager.end("under-b");
+  });
+});

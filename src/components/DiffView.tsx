@@ -48,24 +48,29 @@ export function DiffView({
 
   return (
     <>
-      {pairs.map((pair, pi) => {
-        const parts = diffLines(pair.old, pair.new);
-        return (
-          <pre key={pi} className={`diff ${compact ? "diff-compact" : ""}`}>
-            {parts.map((p, i) => {
-              const cls = p.added ? "diff-add" : p.removed ? "diff-del" : "diff-ctx";
-              const sign = p.added ? "+" : p.removed ? "−" : " ";
-              const lines = p.value.replace(/\n$/, "").split("\n");
-              return lines.map((ln, j) => (
-                <span key={`${i}-${j}`} className={`diff-line ${cls}`}>
-                  <span className="diff-sign">{sign}</span>
-                  {ln || " "}
-                </span>
-              ));
-            })}
-          </pre>
-        );
-      })}
+      {pairs.map((pair, pi) => (
+        <DiffText key={pi} oldText={pair.old} newText={pair.new} compact={compact} />
+      ))}
     </>
+  );
+}
+
+/** Line-level before/after diff of two plain texts (shared by tool diffs and save-point diffs). */
+export function DiffText({ oldText, newText, compact = false }: { oldText: string; newText: string; compact?: boolean }) {
+  const parts = diffLines(oldText, newText);
+  return (
+    <pre className={`diff ${compact ? "diff-compact" : ""}`}>
+      {parts.map((p, i) => {
+        const cls = p.added ? "diff-add" : p.removed ? "diff-del" : "diff-ctx";
+        const sign = p.added ? "+" : p.removed ? "−" : " ";
+        const lines = p.value.replace(/\n$/, "").split("\n");
+        return lines.map((ln, j) => (
+          <span key={`${i}-${j}`} className={`diff-line ${cls}`}>
+            <span className="diff-sign">{sign}</span>
+            {ln || " "}
+          </span>
+        ));
+      })}
+    </pre>
   );
 }

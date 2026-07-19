@@ -2012,3 +2012,113 @@ button {
     text-align: left;
   }
 }
+
+/* ---- Save points (history) ---- */
+.hist-detail h3 {
+  margin: 10px 0 2px;
+  font-size: 15.5px;
+}
+.hist-ok {
+  color: var(--ok);
+  font-size: 13.5px;
+  font-weight: 600;
+  margin: 8px 0;
+}
+.hist-diff-file {
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  margin: 6px 0;
+  overflow: hidden;
+}
+.hist-file-row,
+.git-file-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  font-size: 13px;
+  background: none;
+  border: none;
+  text-align: left;
+  color: var(--ink);
+}
+.hist-file-row {
+  cursor: pointer;
+}
+.hist-file-row:hover {
+  background: var(--panel-2);
+}
+.hist-file-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: 12.5px;
+}
+.hist-badge {
+  flex-shrink: 0;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 2px 7px;
+  border-radius: 999px;
+}
+.hist-badge-new {
+  background: var(--add-bg);
+  color: var(--add-ink);
+}
+.hist-badge-del {
+  background: var(--del-bg);
+  color: var(--del-ink);
+}
+.hist-badge-mod {
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+.git-commit-box {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.git-commit-box .field-input {
+  flex: 1;
+}
+
+/* ---- Preview bar ---- */
+.preview-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel-2);
+  font-size: 12.5px;
+}
+.preview-bar-err {
+  background: var(--del-bg);
+  color: var(--del-ink);
+}
+.preview-bar-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.preview-log {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  max-height: 160px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.preview-log-bar {
+  flex-basis: 100%;
+  margin: 4px 0 2px;
+}

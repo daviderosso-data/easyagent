@@ -9,6 +9,7 @@ import { basename } from "node:path";
 import { buildAgentEnv } from "@/server/security";
 import { sessionManager, type Turn } from "@/server/session-manager";
 import { recordUsage, saveRateLimits, type UsageStatus } from "@/server/usage-store";
+import { snapshotBeforeTurn } from "@/server/snapshots";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -158,6 +159,10 @@ async function runTurnBody(params: RunParams): Promise<void> {
   const permissionMode = behaviorToMode(config.behavior);
   const { deny, ask } = buildRules(config);
   const sandbox = config.sandbox ? buildSandboxConfig() : null;
+
+  // Automatic save point before the agent touches anything. Internally
+  // guarded (skips when git is missing or nothing changed) and never throws.
+  await snapshotBeforeTurn(cwd, prompt, turnId);
 
   // Hard gate: runs before everything, applies even under bypassPermissions.
   const preToolGate = async (input: any): Promise<any> => {
