@@ -57,6 +57,28 @@ export function FileTree() {
     prevRunning.current = running;
   }, [running, bump]);
 
+  // After a save-point restore, disk is the truth: refresh the tree AND
+  // reload every open tab (a tab whose file vanished closes). The prev-value
+  // guard makes the extra runs caused by the tabs dependency no-ops.
+  const fsRefresh = useAgent((s) => s.fsRefresh);
+  const prevFsRefresh = useRef(fsRefresh);
+  useEffect(() => {
+    if (fsRefresh === prevFsRefresh.current) return;
+    prevFsRefresh.current = fsRefresh;
+    bump();
+    void (async () => {
+      const reloaded = await Promise.all(
+        tabs.map(async (tab) => {
+          const d = await apiReadFile(tab.path, token);
+          return d.ok ? { ...tab, content: d.content ?? "", saved: d.content ?? "", binary: !!d.binary, tooBig: !!d.tooBig } : null;
+        })
+      );
+      const kept = reloaded.filter((x): x is Tab => x !== null);
+      setTabs(kept);
+      setActivePath((p) => (p && kept.some((t) => t.path === p) ? p : kept.length ? kept[kept.length - 1].path : null));
+    })();
+  }, [fsRefresh, bump, token, tabs]);
+
   // Debounced project search.
   useEffect(() => {
     if (!cwd || query.trim().length < 2) {

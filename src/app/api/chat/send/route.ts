@@ -71,6 +71,7 @@ export async function POST(req: Request) {
   // and runTurn always releases the slot in its finally.
   const turn = sessionManager.tryCreate(turnId, new AbortController(), MAX_CONCURRENT_TURNS);
   if (!turn) return err(429, "Too many requests in progress.");
+  turn.cwd = cwdCheck.path!;
 
   // If the client goes away (tab closed, fetch aborted), abort the turn:
   // otherwise a turn parked on an approval would wait forever and keep its

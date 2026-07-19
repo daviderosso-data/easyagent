@@ -58,6 +58,21 @@ export interface Session {
   selModel?: string | null;
   /** Per-chat reasoning effort (undefined = default). */
   effort?: Effort;
+  /** Live preview of this session's project. */
+  previewState?: PreviewState;
+  previewUrl?: string | null;
+  previewError?: string;
+  previewLog?: string[];
+}
+
+export type PreviewState = "idle" | "installing" | "starting" | "running" | "error";
+
+export interface PreviewInfo {
+  state: PreviewState;
+  url?: string;
+  kind?: "static" | "node" | "none";
+  error?: string;
+  logTail?: string[];
 }
 
 export type OrchPhase = "idle" | "planning" | "working" | "reviewing" | "done" | "error" | "cancelled";
@@ -105,6 +120,9 @@ interface AppState {
   lang: Lang;
   settings: AppSettings;
   orch: OrchState;
+  /** Bumped when files change outside the editor (e.g. save-point restore) so
+   *  the tree and open tabs reload from disk. */
+  fsRefresh: number;
 
   setToken: (t: string) => void;
   setLang: (l: Lang) => void;
@@ -131,6 +149,11 @@ interface AppState {
   stop: (id: string) => Promise<void>;
   respondApproval: (id: string, decision: "allow" | "deny", alwaysAllow?: boolean) => Promise<void>;
   resetSession: (id: string) => void;
+
+  bumpFsRefresh: () => void;
+  refreshPreview: (id: string) => Promise<void>;
+  startPreview: (id: string) => Promise<void>;
+  stopPreview: (id: string) => Promise<void>;
 }
 
 let counter = 0;
@@ -173,8 +196,57 @@ export const useAgent = create<AppState>((set, get) => ({
   lang: "en",
   settings: DEFAULT_SETTINGS,
   orch: IDLE_ORCH,
+  fsRefresh: 0,
 
   setToken: (token) => set({ token }),
+
+  bumpFsRefresh: () => set((s) => ({ fsRefresh: s.fsRefresh + 1 })),
+
+  refreshPreview: async (id) => {
+    const s = get().sessions[id];
+    if (!s?.cwd) return;
+    try {
+      const r = await fetch(`/api/preview?cwd=${encodeURIComponent(s.cwd)}`, { headers: authHeaders(get().token) });
+      if (!r.ok) return;
+      applyPreview(id, (await r.json()) as PreviewInfo);
+    } catch {
+      /* ignore */
+    }
+  },
+
+  startPreview: async (id) => {
+    const s = get().sessions[id];
+    if (!s?.cwd) return;
+    try {
+      const r = await fetch("/api/preview/start", {
+        method: "POST",
+        headers: authHeaders(get().token),
+        body: JSON.stringify({ cwd: s.cwd }),
+      });
+      if (!r.ok) return;
+      const info = (await r.json()) as PreviewInfo;
+      // Nothing to preview (no index.html, no dev script) → friendly error state.
+      if (info.kind === "none") applyPreview(id, { state: "error", error: "none" });
+      else applyPreview(id, info);
+    } catch {
+      /* ignore */
+    }
+  },
+
+  stopPreview: async (id) => {
+    const s = get().sessions[id];
+    if (!s?.cwd) return;
+    try {
+      await fetch("/api/preview/stop", {
+        method: "POST",
+        headers: authHeaders(get().token),
+        body: JSON.stringify({ cwd: s.cwd }),
+      });
+    } catch {
+      /* ignore */
+    }
+    updateSession(id, (s2) => ({ ...s2, previewState: "idle", previewUrl: null, previewError: undefined }));
+  },
 
   setLang: (lang) => {
     set({ lang });
@@ -536,6 +608,16 @@ function updateSession(id: string, updater: (s: Session) => Session) {
     if (!cur) return {};
     return { sessions: { ...st.sessions, [id]: updater(cur) } };
   });
+}
+
+function applyPreview(id: string, info: PreviewInfo) {
+  updateSession(id, (s) => ({
+    ...s,
+    previewState: info.state,
+    previewUrl: info.url ?? null,
+    previewError: info.error,
+    previewLog: info.logTail,
+  }));
 }
 
 /* ---- Project / workspace helpers ---- */

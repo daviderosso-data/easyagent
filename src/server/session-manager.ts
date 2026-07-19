@@ -19,6 +19,8 @@ export interface Turn {
   turnId: string;
   abort: AbortController;
   query?: LiveQuery;
+  /** Realpath cwd of the turn — lets features scoped to a project (e.g. save-point restore) detect activity. */
+  cwd?: string;
   /** approvalId -> resolver waiting inside canUseTool */
   pendingApprovals: Map<string, (decision: ApprovalDecision) => void>;
 }
@@ -59,6 +61,15 @@ class SessionManager {
   /** Number of turns currently running (for the concurrency cap). */
   size(): number {
     return this.turns.size;
+  }
+
+  /** Whether any turn is running inside the given directory (or a subfolder). */
+  anyRunningUnder(pathPrefix: string): boolean {
+    for (const turn of this.turns.values()) {
+      const c = turn.cwd;
+      if (c && (c === pathPrefix || c.startsWith(pathPrefix + "/") || c.startsWith(pathPrefix + "\\"))) return true;
+    }
+    return false;
   }
 
   end(turnId: string): void {
