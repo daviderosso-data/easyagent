@@ -6,6 +6,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { PanelsGrid } from "@/components/PanelsGrid";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import { AnalyticsPanel } from "@/components/AnalyticsPanel";
+import { SkillsPanel } from "@/components/SkillsPanel";
 import { ProjectsPanel } from "@/components/ProjectsPanel";
 import { OrchestratorModal } from "@/components/OrchestratorModal";
 import { OrchestrationBanner } from "@/components/OrchestrationBanner";
@@ -19,6 +20,7 @@ export default function Home() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
   const [projectsFor, setProjectsFor] = useState<string | null>(null);
+  const [skillsFor, setSkillsFor] = useState<string | null>(null);
   const [orchestrateOpen, setOrchestrateOpen] = useState(false);
 
   useEffect(() => {
@@ -48,6 +50,7 @@ export default function Home() {
             onOrchestrate={() => setOrchestrateOpen(true)}
             onProjects={() => setProjectsFor(useAgent.getState().activePanel)}
             onAnalytics={() => setAnalyticsOpen(true)}
+            onSkills={() => setSkillsFor(useAgent.getState().activePanel)}
           />
           <PanelsGrid onChangeFolder={setProjectsFor} />
         </div>
@@ -55,6 +58,7 @@ export default function Home() {
       {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
       {analyticsOpen && <AnalyticsPanel onClose={() => setAnalyticsOpen(false)} />}
       {projectsFor && <ProjectsPanel panelId={projectsFor} onClose={() => setProjectsFor(null)} />}
+      {skillsFor && <SkillsPanel panelId={skillsFor} onClose={() => setSkillsFor(null)} />}
       {orchestrateOpen && <OrchestratorModal onClose={() => setOrchestrateOpen(false)} />}
     </>
   );

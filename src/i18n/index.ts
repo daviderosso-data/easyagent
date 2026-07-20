@@ -3,6 +3,7 @@
 import { useAgent } from "@/store/agent";
 import { messages, type MsgKey } from "@/i18n/messages";
 import type { Lang } from "@/lib/settings";
+import { parseMcpTool } from "@/lib/mcp-shared";
 
 export function useT(): (k: MsgKey) => string {
   const lang = useAgent((s) => s.lang);
@@ -28,6 +29,7 @@ const SEVERITY_REASON: Record<string, MsgKey> = {
   broaddelete: "reasonBroaddelete",
   perms: "reasonPerms",
   kill: "reasonKill",
+  mcp: "reasonMcp",
 };
 
 export function riskReason(severity: string, lang: Lang): string | null {
@@ -53,8 +55,15 @@ export function describeTool(toolName: string, input: Record<string, unknown>, l
       return it ? `Claude vuole aprire: ${String(input.url ?? "")}` : `Claude wants to open: ${String(input.url ?? "")}`;
     case "WebSearch":
       return it ? `Claude vuole cercare sul web: «${String(input.query ?? "")}».` : `Claude wants to search the web: "${String(input.query ?? "")}".`;
-    default:
+    default: {
+      const mcp = parseMcpTool(toolName);
+      if (mcp) {
+        return it
+          ? `Claude vuole usare il collegamento «${mcp.server}»: ${mcp.tool}.`
+          : `Claude wants to use the "${mcp.server}" connection: ${mcp.tool}.`;
+      }
       return it ? `Claude vuole usare lo strumento «${toolName}».` : `Claude wants to use the "${toolName}" tool.`;
+    }
   }
 }
 
@@ -83,7 +92,9 @@ export function labelTool(toolName: string, input: Record<string, unknown>, lang
       return it ? `Apro ${String(input.url ?? "")}` : `Opening ${String(input.url ?? "")}`;
     case "WebSearch":
       return it ? "Cerco sul web" : "Searching the web";
-    default:
-      return toolName;
+    default: {
+      const mcp = parseMcpTool(toolName);
+      return mcp ? `${mcp.server} → ${mcp.tool}` : toolName;
+    }
   }
 }

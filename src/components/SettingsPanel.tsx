@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useAgent } from "@/store/agent";
 import { useT } from "@/i18n";
 import { detectProfile, type SecurityProfile, type Lang, type Theme } from "@/lib/settings";
+import { ConnectionsSection } from "@/components/ConnectionsSection";
 
 interface AccountData {
   loggedIn: boolean;
@@ -143,6 +144,9 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
               </div>
             )}
           </section>
+
+          {/* -------- Connections (MCP) -------- */}
+          <ConnectionsSection />
 
           {/* -------- Language & appearance -------- */}
           <section className="settings-section">

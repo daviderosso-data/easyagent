@@ -29,6 +29,10 @@ export type AgentEvent =
       tools: string[];
       slashCommands: string[];
       apiKeySource: string;
+      /** External connections available this turn, with startup status. */
+      mcpServers?: { name: string; status: string }[];
+      /** Skill names loaded for this turn (bundled + project). */
+      skills?: string[];
     }
   | { type: "text"; id: string; text: string }
   | { type: "thinking"; id: string; text: string }

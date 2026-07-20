@@ -2,7 +2,7 @@ import { query } from "@anthropic-ai/claude-agent-sdk";
 import { randomUUID } from "node:crypto";
 import type { AgentEvent } from "@/lib/agent-events";
 import type { SecurityConfig, Lang } from "@/lib/settings";
-import { behaviorToMode, READ_ONLY_TOOLS } from "@/server/safety-presets";
+import { behaviorToMode } from "@/server/safety-presets";
 import { makeClassifier, buildRules } from "@/server/command-policy";
 import { blockedReason, authError, genericError } from "@/server/i18n-server";
 import { basename } from "node:path";
@@ -10,6 +10,9 @@ import { buildAgentEnv } from "@/server/security";
 import { sessionManager, type Turn } from "@/server/session-manager";
 import { recordUsage, saveRateLimits, type UsageStatus } from "@/server/usage-store";
 import { snapshotBeforeTurn } from "@/server/snapshots";
+import { buildMcpConfig, recordMcpStatus } from "@/server/mcp-store";
+import { skillsQueryOptions } from "@/server/skills";
+import { autoAllows } from "@/server/safety-presets";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -193,10 +196,10 @@ async function runTurnBody(params: RunParams): Promise<void> {
     if (level === "block") {
       return { behavior: "deny", message: blockedReason(severity, lang) };
     }
-    // Auto-allow when no confirmation is wanted: read-only tools always, and
-    // everything under the "open" profile (bypass still routes here because a
-    // canUseTool callback is registered).
-    if (level === "normal" && (config.behavior === "open" || READ_ONLY_TOOLS.has(toolName))) {
+    // Auto-allow when no confirmation is wanted (read-only tools, the "open"
+    // profile). External MCP tools always prompt outside "open" — the
+    // predicate is declarative and unit-tested in safety-presets.
+    if (autoAllows(level, severity, toolName, config.behavior)) {
       return { behavior: "allow", updatedInput: input };
     }
     const approvalId = randomUUID();
@@ -253,7 +256,13 @@ async function runTurnBody(params: RunParams): Promise<void> {
           : {}),
         additionalDirectories: [],
         settingSources: [],
-        settings: { permissions: { deny, ask } },
+        settings: { permissions: { deny, ask }, disableSkillShellExecution: true },
+        // Locked profile gets no external connections at all; strictMcpConfig
+        // keeps ambient .mcp.json / settings servers out in every profile.
+        mcpServers: config.profile === "locked" ? {} : buildMcpConfig(),
+        strictMcpConfig: true,
+        // Project skills load via a local plugin (see skills.ts probe notes).
+        ...skillsQueryOptions(cwd),
         // Stream text/thinking as it is generated so long answers appear
         // incrementally instead of arriving all at once (looking like a hang).
         includePartialMessages: true,
@@ -278,7 +287,18 @@ async function runTurnBody(params: RunParams): Promise<void> {
           tools: m.tools ?? [],
           slashCommands: m.slash_commands ?? [],
           apiKeySource: m.apiKeySource ?? "none",
+          mcpServers: (m.mcp_servers ?? []).map((s: any) => ({ name: s.name, status: s.status })),
+          skills: m.skills ?? [],
         });
+        recordMcpStatus(m.mcp_servers ?? []);
+        if ((m.mcp_servers ?? []).length > 0) {
+          // Richer per-server status (errors, resolves "pending"); best effort.
+          try {
+            recordMcpStatus((await (q as any).mcpServerStatus?.()) ?? []);
+          } catch {
+            /* ignore */
+          }
+        }
         // Refresh subscription rate limits while the query is live.
         await captureRateLimits(q);
       } else if (m.type === "stream_event") {

@@ -9,11 +9,13 @@ export function Sidebar({
   onOrchestrate,
   onProjects,
   onAnalytics,
+  onSkills,
 }: {
   onAddPanel: () => void;
   onOrchestrate: () => void;
   onProjects: () => void;
   onAnalytics: () => void;
+  onSkills: () => void;
 }) {
   const t = useT();
   const panels = useAgent((s) => s.panels);
@@ -59,6 +61,9 @@ export function Sidebar({
         </button>
         <button className="orch-btn" onClick={onAnalytics}>
           📊 {t("analytics")}
+        </button>
+        <button className="orch-btn" disabled={!sessions[activePanel]?.cwd} onClick={onSkills}>
+          ✨ {t("skills")}
         </button>
       </div>
       <FileTree />
