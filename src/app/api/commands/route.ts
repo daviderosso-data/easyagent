@@ -1,6 +1,7 @@
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import { homedir } from "node:os";
 import { tokenValid, buildAgentEnv, validateCwd } from "@/server/security";
+import { skillsQueryOptions } from "@/server/skills";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -45,7 +46,17 @@ export async function GET(req: Request) {
   try {
     const q = query({
       prompt: "/help",
-      options: { cwd: dir, maxTurns: 1, env: buildAgentEnv() } as any,
+      // Mirror the real turn's isolation and skills loading so the palette
+      // lists exactly what a turn can use (no ambient MCP/config).
+      options: {
+        cwd: dir,
+        maxTurns: 1,
+        env: buildAgentEnv(),
+        settingSources: [],
+        mcpServers: {},
+        strictMcpConfig: true,
+        ...(check.ok ? skillsQueryOptions(check.path!) : {}),
+      } as any,
     });
     for await (const m of q as AsyncIterable<any>) {
       if (m.type === "system" && m.subtype === "init") {

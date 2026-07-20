@@ -2122,3 +2122,102 @@ button {
   flex-basis: 100%;
   margin: 4px 0 2px;
 }
+
+/* ---- Connections (MCP) ---- */
+.conn-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 2px;
+  font-size: 13.5px;
+  border-bottom: 1px solid var(--line);
+}
+.conn-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+.conn-dot-ok {
+  background: var(--ok);
+}
+.conn-dot-err {
+  background: var(--warn);
+}
+.conn-dot-off {
+  background: var(--line);
+}
+.conn-dot-pending {
+  background: var(--ink-soft);
+}
+.conn-meta {
+  color: var(--ink-soft);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 45%;
+}
+.conn-presets {
+  margin: 12px 0 4px;
+}
+.conn-form {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  background: var(--panel-2);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin: 8px 0;
+}
+.kv-row {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr auto;
+  gap: 8px;
+  align-items: center;
+}
+.conn-locked-note {
+  background: var(--brand-soft);
+  color: var(--brand);
+  border-radius: 8px;
+  padding: 7px 11px;
+  font-size: 12.5px;
+}
+
+/* ---- Skills ---- */
+.skill-md {
+  font-family: var(--mono);
+  font-size: 12px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  max-height: 280px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.skill-cmd {
+  font-family: var(--mono);
+  background: var(--panel-2);
+  border-radius: 6px;
+  padding: 2px 7px;
+  font-size: 12.5px;
+}
+.skill-desc {
+  width: 100%;
+  resize: vertical;
+}
+.skill-row {
+  position: relative;
+  cursor: pointer;
+}
+.skill-badge {
+  margin-left: 8px;
+}
+.skill-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+}

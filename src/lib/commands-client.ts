@@ -15,6 +15,13 @@ export interface CommandsResult {
 // not free, and the list rarely changes within a session.
 const cache = new Map<string, CommandInfo[]>();
 
+/** Drop the cached list (one folder or all) — e.g. after a skill is created,
+ *  toggled, or deleted, so the palette refetches. */
+export function clearCommandsCache(cwd?: string): void {
+  if (cwd === undefined) cache.clear();
+  else cache.delete(cwd);
+}
+
 export async function apiListCommands(
   cwd: string,
   token: string | null,

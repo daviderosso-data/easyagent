@@ -74,3 +74,23 @@ describe("deny rules include the expanded secret set", () => {
     expect(deny).toContain("Read(~/.npmrc)");
   });
 });
+
+describe("MCP tool classification", () => {
+  const STANDARD: SecurityConfig = { ...LOCKED, profile: "standard", installNetwork: "normal", behavior: "auto" };
+  const std = makeClassifier(CWD, STANDARD);
+
+  it("classifies mcp__ tools with severity 'mcp'", () => {
+    expect(sev("mcp__github__create_issue", {})).toBe("mcp");
+    expect(std("mcp__memory__create_entities", {}).severity).toBe("mcp");
+  });
+
+  it("blocks MCP under locked, allows level 'normal' elsewhere", () => {
+    expect(lvl("mcp__github__create_issue", {})).toBe("block");
+    expect(std("mcp__github__create_issue", {}).level).toBe("normal");
+  });
+
+  it("leaves unknown non-MCP tools as harmless 'none'", () => {
+    expect(sev("SomeFutureTool", {})).toBe("none");
+    expect(lvl("SomeFutureTool", {})).toBe("normal");
+  });
+});

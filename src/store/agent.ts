@@ -6,6 +6,7 @@ import type { AppSettings, Lang, Theme, SecurityConfig } from "@/lib/settings";
 import type { Effort } from "@/lib/models";
 import { DEFAULT_SETTINGS, PROFILES, detectProfile } from "@/lib/settings";
 import { streamAgent } from "@/lib/sse-client";
+import { clearCommandsCache } from "@/lib/commands-client";
 import { messages } from "@/i18n/messages";
 
 export type Item =
@@ -63,6 +64,10 @@ export interface Session {
   previewUrl?: string | null;
   previewError?: string;
   previewLog?: string[];
+  /** External connections seen by the last turn, with startup status. */
+  mcpStatus?: { name: string; status: string }[];
+  /** Skill names loaded for the last turn. */
+  skills?: string[];
 }
 
 export type PreviewState = "idle" | "installing" | "starting" | "running" | "error";
@@ -676,7 +681,15 @@ function scheduleSaveWorkspace() {
 function reduce(id: string, e: AgentEvent) {
   switch (e.type) {
     case "ready":
-      updateSession(id, (s) => ({ ...s, turnId: e.turnId, sessionId: e.sessionId, model: e.model, apiKeySource: e.apiKeySource }));
+      updateSession(id, (s) => ({
+        ...s,
+        turnId: e.turnId,
+        sessionId: e.sessionId,
+        model: e.model,
+        apiKeySource: e.apiKeySource,
+        ...(e.mcpServers ? { mcpStatus: e.mcpServers } : {}),
+        ...(e.skills ? { skills: e.skills } : {}),
+      }));
       scheduleSaveWorkspace();
       break;
     case "text":
@@ -732,6 +745,11 @@ function reduce(id: string, e: AgentEvent) {
         items: [...s.items, { kind: "done", id: nid(), costUsd: e.totalCostUsd, numTurns: e.numTurns, durationMs: e.durationMs, isError: e.isError }],
         sessionId: e.sessionId || s.sessionId,
       }));
+      // The turn may have created/edited skills — let the palette refetch.
+      {
+        const cwd = useAgent.getState().sessions[id]?.cwd;
+        if (cwd) clearCommandsCache(cwd);
+      }
       break;
     case "error":
       updateSession(id, (s) => ({ ...s, items: [...s.items, { kind: "error", id: nid(), message: e.message }] }));

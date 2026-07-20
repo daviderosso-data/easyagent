@@ -13,7 +13,7 @@ import type { SecurityConfig } from "@/lib/settings";
 export type RiskLevel = "block" | "red" | "normal";
 export type Severity =
   | "catastrophic" | "secret" | "escape" | "install" | "network"
-  | "broaddelete" | "perms" | "kill" | "none";
+  | "broaddelete" | "perms" | "kill" | "mcp" | "none";
 
 export interface Classification {
   level: RiskLevel;
@@ -167,6 +167,11 @@ export function levelFor(sev: Severity, cfg: SecurityConfig): RiskLevel {
     case "perms":
     case "kill":
       return cfg.blockCatastrophic ? "red" : "normal";
+    case "mcp":
+      // Defense in depth: under Locked the primary lever is that no mcpServers
+      // are passed to the SDK at all; this makes a stray MCP call an outright
+      // block. Elsewhere it is "normal" but autoAllows() still forces a prompt.
+      return cfg.profile === "locked" ? "block" : "normal";
     default:
       return "normal";
   }
@@ -205,6 +210,11 @@ export function makeClassifier(cwd: string, cfg: SecurityConfig): Classify {
       case "WebFetch":
       case "WebSearch":
         sev = "network";
+        break;
+      default:
+        // External MCP tools (mcp__server__tool) can do anything — never let
+        // them fall through as harmless unknowns.
+        if (toolName.startsWith("mcp__")) sev = "mcp";
         break;
     }
     return { level: levelFor(sev, cfg), severity: sev };
