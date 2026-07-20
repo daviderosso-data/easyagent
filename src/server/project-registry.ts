@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { PROJECTS_ROOT, ensureProjectsRoot, createProject, realWithinProjectsRoot } from "@/server/projects";
 import { scaffoldTemplate, isTemplateId } from "@/server/project-templates";
 
-const META_DIR = join(homedir(), ".easyclaude");
+const META_DIR = join(homedir(), ".easyagent");
 const META_FILE = join(META_DIR, "projects.json");
 
 export type ProjectType = "manual" | "orchestrated";
@@ -67,7 +67,11 @@ export function listProjects(): ProjectInfo[] {
         createdAt = Date.now();
       }
     }
-    const type: ProjectType = m.type ?? (existsSync(join(path, "easyclaude-plan.md")) ? "orchestrated" : "manual");
+    const type: ProjectType =
+      m.type ??
+      (existsSync(join(path, "easyagent-plan.md")) || existsSync(join(path, "easyclaude-plan.md"))
+        ? "orchestrated"
+        : "manual");
     out.push({
       folder,
       displayName: m.displayName ?? folder,

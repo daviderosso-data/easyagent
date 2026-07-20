@@ -2,8 +2,11 @@ import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { DEFAULT_SETTINGS, PROFILES, type AppSettings } from "@/lib/settings";
+import { migrateLegacyDataOnce } from "@/server/migrate-legacy";
 
-const DIR = join(homedir(), ".easyclaude");
+migrateLegacyDataOnce();
+
+const DIR = join(homedir(), ".easyagent");
 const FILE = join(DIR, "settings.json");
 
 export function loadSettings(): AppSettings {

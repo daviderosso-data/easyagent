@@ -72,7 +72,7 @@ export function SessionPanel({ id, onChangeFolder }: { id: string; onChangeFolde
     // Open the tab synchronously (popup-blocker-safe), then start the server.
     const w = window.open("", "_blank");
     if (w) {
-      w.document.write(`<title>easyclaude</title><body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;color:#555">${t("previewPreparing")}</body>`);
+      w.document.write(`<title>easyagent</title><body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;color:#555">${t("previewPreparing")}</body>`);
       placeholderRef.current = w;
     }
     void startPreview(id);

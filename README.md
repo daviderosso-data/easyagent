@@ -1,6 +1,6 @@
-# easyclaude
+# easyagent
 
-[![CI](https://github.com/daviderosso-data/easyclaude/actions/workflows/ci.yml/badge.svg)](https://github.com/daviderosso-data/easyclaude/actions/workflows/ci.yml)
+[![CI](https://github.com/daviderosso-data/easyagent/actions/workflows/ci.yml/badge.svg)](https://github.com/daviderosso-data/easyagent/actions/workflows/ci.yml)
 
 A local web interface for [Claude Code](https://claude.com/claude-code) — the full coding agent — for
 people who don't use a terminal. Every file change appears as a visual diff with one-click approval; work
@@ -11,7 +11,7 @@ sessions, a multi-agent orchestrator and project management.
 
 ## What it is
 
-easyclaude wraps the **full Claude Code agent** (it reads and writes files, runs commands, uses git) in a
+easyagent wraps the **full Claude Code agent** (it reads and writes files, runs commands, uses git) in a
 clean graphical interface instead of the terminal, so non-technical people can build and fix real projects
 safely. It is not a limited chat: it has the same capabilities as terminal Claude Code — only the
 experience is friendlier. Every action that changes something is shown as a visual diff and gated by a
@@ -41,7 +41,7 @@ browser; nothing is stored by the app), and confines the agent to a single proje
 
 - [Node.js](https://nodejs.org) 20.9 or newer.
 - [Claude Code](https://claude.com/claude-code) installed and signed in with your Claude subscription
-  (Pro/Max). You can sign in from inside the app (Settings → Account); easyclaude reuses Claude Code's own
+  (Pro/Max). You can sign in from inside the app (Settings → Account); easyagent reuses Claude Code's own
   login and never sees your password or API key.
 
 ## Quick start
@@ -96,7 +96,7 @@ catastrophic commands and secret reads blocked.
   request.
 - Uses your own Claude Code credentials (subscription or API key); the app never sees or stores them, and
   strips API-key environment variables so turns use your subscription.
-- In Locked and Standard the agent is confined to `~/easyclaude` and cannot read your secrets (`~/.ssh`,
+- In Locked and Standard the agent is confined to `~/easyagent` and cannot read your secrets (`~/.ssh`,
   `~/.aws`, `.env`, `.netrc`, `.npmrc`, …). Your sensitive environment variables are never passed to the
   agent. On macOS this is enforced by the OS sandbox too; on Windows by the command filter and deny rules.
 
@@ -109,8 +109,8 @@ sandbox enforce the security policy, and mutating actions are surfaced as an app
 
 Local state lives in your home folder, outside the repo:
 
-- `~/easyclaude/` — your project folders.
-- `~/.easyclaude/` — app settings, project metadata, workspace layout and usage stats.
+- `~/easyagent/` — your project folders.
+- `~/.easyagent/` — app settings, project metadata, workspace layout and usage stats.
 
 ## License
 

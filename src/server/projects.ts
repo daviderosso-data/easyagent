@@ -1,11 +1,14 @@
 import { mkdirSync, existsSync, realpathSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve, sep } from "node:path";
+import { migrateLegacyDataOnce } from "@/server/migrate-legacy";
 
-/** The single home for ALL easyclaude project folders. Every session's working
+migrateLegacyDataOnce();
+
+/** The single home for ALL easyagent project folders. Every session's working
  *  directory must live inside this root. Kept in the user's home (outside the
  *  app's git repo, so the agent anchors paths correctly). */
-export const PROJECTS_ROOT = join(homedir(), "easyclaude");
+export const PROJECTS_ROOT = join(homedir(), "easyagent");
 
 export function ensureProjectsRoot(): string {
   try {

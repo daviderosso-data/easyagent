@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { mkdirSync } from "node:fs";
 import { orchestrationGrants } from "@/server/orchestration-grants";
 
-const ROOT = join(homedir(), "easyclaude", "grant-test");
+const ROOT = join(homedir(), "easyagent", "grant-test");
 
 describe("orchestration grants", () => {
   it("mints a grant valid for its project root and subfolders", () => {
@@ -17,7 +17,7 @@ describe("orchestration grants", () => {
   it("rejects a different project root", () => {
     mkdirSync(ROOT, { recursive: true });
     const id = orchestrationGrants.mint(ROOT);
-    expect(orchestrationGrants.validFor(id, join(homedir(), "easyclaude"))).toBe(false);
+    expect(orchestrationGrants.validFor(id, join(homedir(), "easyagent"))).toBe(false);
     // A sibling that merely shares a name prefix must not match.
     expect(orchestrationGrants.validFor(id, ROOT + "-evil")).toBe(false);
   });

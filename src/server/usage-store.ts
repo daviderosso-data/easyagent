@@ -5,7 +5,7 @@ import type { UsageEvent, RateLimits, Aggregate } from "@/lib/usage-types";
 
 export type { UsageStatus, UsageEvent, RateLimitWindow, RateLimits, Aggregate } from "@/lib/usage-types";
 
-const DIR = join(homedir(), ".easyclaude");
+const DIR = join(homedir(), ".easyagent");
 export const USAGE_FILE = join(DIR, "usage.jsonl");
 const RATE_FILE = join(DIR, "ratelimits.json");
 

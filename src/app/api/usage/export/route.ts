@@ -8,7 +8,7 @@ export function GET(req: Request) {
   return new Response(eventsToCsv(readUsageEvents()), {
     headers: {
       "content-type": "text/csv; charset=utf-8",
-      "content-disposition": 'attachment; filename="easyclaude-usage.csv"',
+      "content-disposition": 'attachment; filename="easyagent-usage.csv"',
     },
   });
 }

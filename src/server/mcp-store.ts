@@ -224,7 +224,7 @@ export const MCP_PRESETS: McpPreset[] = [
     kind: "stdio",
     command: "npx",
     args: ["-y", "@modelcontextprotocol/server-memory"],
-    env: { MEMORY_FILE_PATH: join(homedir(), ".easyclaude", "memory.json") },
+    env: { MEMORY_FILE_PATH: join(homedir(), ".easyagent", "memory.json") },
   },
 ];
 

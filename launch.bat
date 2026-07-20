@@ -1,6 +1,6 @@
 @echo off
 setlocal
-REM easyclaude - one-click launcher (Windows). Double-click to start.
+REM easyagent - one-click launcher (Windows). Double-click to start.
 cd /d "%~dp0"
 
 REM Force the user's Claude subscription (an API key would take precedence).
@@ -21,7 +21,7 @@ node -e "const v=process.versions.node.split('.').map(Number);process.exit(v[0]>
 if errorlevel 1 (
   echo.
   for /f "delims=" %%v in ('node -v') do set "NODEV=%%v"
-  echo !! Your Node.js is too old ^(%NODEV%^). easyclaude needs 20.9 or newer.
+  echo !! Your Node.js is too old ^(%NODEV%^). easyagent needs 20.9 or newer.
   echo    Update it from https://nodejs.org and try again.
   goto fail
 )
@@ -47,7 +47,7 @@ if not exist .next (
 )
 
 echo Starting the local server at http://127.0.0.1:3000 ...
-start "easyclaude server" cmd /c "npx next start -H 127.0.0.1 -p 3000"
+start "easyagent server" cmd /c "npx next start -H 127.0.0.1 -p 3000"
 
 echo Waiting for the server to be ready...
 for /l %%i in (1,1,60) do (

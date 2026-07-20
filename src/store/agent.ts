@@ -794,14 +794,14 @@ function rolePrompt(role: string, task: string): string {
     `Rules:\n- Work ONLY inside your assigned folder.\n` +
     `- Follow the shared brief so your part fits with the other roles.\n` +
     `- When finished, append one line "DONE — <one-sentence summary>" under a "## ${role}" heading in ` +
-    `../easyclaude-status.md, then stop.`
+    `../easyagent-status.md, then stop.`
   );
 }
 
 function reviewPrompt(round: number): string {
   return (
     `The role agents have finished round ${round}. Their work is in the sub-folders ` +
-    `(see easyclaude-plan.md and easyclaude-status.md).\nFrom the project root:\n` +
+    `(see easyagent-plan.md and easyagent-status.md).\nFrom the project root:\n` +
     `1. Read what each role produced.\n` +
     `2. Integrate the pieces so the whole project works together (add any top-level files/config needed).\n` +
     `3. Actually run/test it — install dependencies and run the build or tests — to verify it works.\n\n` +

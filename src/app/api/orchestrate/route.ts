@@ -55,8 +55,8 @@ export async function POST(req: Request) {
     "_Agents append their DONE summaries below._",
     "",
   ].join("\n");
-  writeProjectFile(join(proj.path, "easyclaude-plan.md"), md);
-  writeProjectFile(join(proj.path, "easyclaude-status.md"), `# ${proj.name} — status\n\n`);
+  writeProjectFile(join(proj.path, "easyagent-plan.md"), md);
+  writeProjectFile(join(proj.path, "easyagent-status.md"), `# ${proj.name} — status\n\n`);
 
   return Response.json({
     ok: true,

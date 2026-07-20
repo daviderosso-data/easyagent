@@ -14,7 +14,7 @@ const LOCKED: SecurityConfig = {
   behavior: "ask",
 };
 
-const CWD = join(homedir(), "easyclaude", "policy-fixture");
+const CWD = join(homedir(), "easyagent", "policy-fixture");
 const classify = makeClassifier(CWD, LOCKED);
 const sev = (tool: string, input: Record<string, unknown>) => classify(tool, input).severity;
 const lvl = (tool: string, input: Record<string, unknown>) => classify(tool, input).level;
