@@ -13,7 +13,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 1800; // long-running agent turns (30 min)
 
-const MAX_CONCURRENT_TURNS = 4;
+// Matches MAX_PANELS so every open panel can run a turn; the subscription's
+// own rate limits are the real throttle, and slots free on disconnect.
+const MAX_CONCURRENT_TURNS = 10;
 
 const BodySchema = z.object({
   prompt: z.string().min(1).max(100_000),

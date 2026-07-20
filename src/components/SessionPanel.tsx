@@ -39,6 +39,12 @@ export function SessionPanel({ id, onChangeFolder }: { id: string; onChangeFolde
   const placeholderRef = useRef<Window | null>(null);
 
   const folderName = cwd ? cwd.split("/").filter(Boolean).pop() : "—";
+  const rootRef = useRef<HTMLElement | null>(null);
+
+  // With 5+ panels the grid scrolls — bring the activated panel into view.
+  useEffect(() => {
+    if (isActive && multi) rootRef.current?.scrollIntoView({ block: "nearest" });
+  }, [isActive, multi]);
 
   // Resync preview state after reload/HMR (the server keeps it running).
   useEffect(() => {
@@ -73,7 +79,7 @@ export function SessionPanel({ id, onChangeFolder }: { id: string; onChangeFolde
   };
 
   return (
-    <section className={`panel ${isActive && multi ? "panel-active" : ""}`} onMouseDown={() => setActive(id)}>
+    <section ref={rootRef} className={`panel ${isActive && multi ? "panel-active" : ""}`} onMouseDown={() => setActive(id)}>
       <div className="panel-head">
         {roleLabel && <span className="role-badge">{roleLabel}</span>}
         <button className="folder-btn folder-btn-sm" onClick={() => onChangeFolder(id)} title={cwd}>

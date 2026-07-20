@@ -115,7 +115,7 @@ export interface RoleSpec {
   task: string;
 }
 
-export const MAX_PANELS = 4;
+export const MAX_PANELS = 10;
 
 interface AppState {
   sessions: Record<string, Session>;
