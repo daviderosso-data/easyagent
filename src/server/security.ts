@@ -42,7 +42,7 @@ export function buildAgentEnv(): Record<string, string> {
 }
 
 /* ---- Working-directory confinement ---- */
-// The working dir must be a real folder inside the easyclaude projects root.
+// The working dir must be a real folder inside the easyagent projects root.
 export interface CwdCheck {
   ok: boolean;
   path?: string;
@@ -54,7 +54,7 @@ export function validateCwd(cwd: unknown): CwdCheck {
     return { ok: false, error: "Invalid folder." };
   }
   if (!withinProjectsRoot(resolve(cwd))) {
-    return { ok: false, error: "The folder must be inside your easyclaude folder." };
+    return { ok: false, error: "The folder must be inside your easyagent folder." };
   }
   // Resolve symlinks and re-check: a link inside the root must not point the
   // agent's working directory outside it. The real path is what gets used.
@@ -68,7 +68,7 @@ export function validateCwd(cwd: unknown): CwdCheck {
     return { ok: false, error: "That folder does not exist." };
   }
   if (!withinProjectsRoot(p)) {
-    return { ok: false, error: "The folder must be inside your easyclaude folder." };
+    return { ok: false, error: "The folder must be inside your easyagent folder." };
   }
   return { ok: true, path: p };
 }

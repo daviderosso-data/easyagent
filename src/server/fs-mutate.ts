@@ -14,11 +14,11 @@ import { PROJECTS_ROOT, realWithinProjectsRoot, withinProjectsRoot } from "@/ser
 import { IGNORE, isBinaryBuffer } from "@/server/fs-browse";
 
 // Write-capable, confined filesystem operations for the in-app file manager.
-// Every mutation stays inside ~/easyclaude (symlink-safe) and validates the
-// affected name. Deletes are SOFT — moved to ~/.easyclaude/.trash — so an
+// Every mutation stays inside ~/easyagent (symlink-safe) and validates the
+// affected name. Deletes are SOFT — moved to ~/.easyagent/.trash — so an
 // accidental delete (by the user or the agent's UI) is recoverable.
 
-const TRASH_DIR = join(homedir(), ".easyclaude", ".trash");
+const TRASH_DIR = join(homedir(), ".easyagent", ".trash");
 const MAX_WRITE_BYTES = 5_000_000;
 const MAX_SEARCH_FILE_BYTES = 500_000;
 const MAX_SCAN_FILES = 5000;
@@ -124,7 +124,7 @@ export function moveEntry(path: unknown, destDir: unknown): MutateResult {
   }
 }
 
-/** Soft-delete: move the entry to ~/.easyclaude/.trash (recoverable). */
+/** Soft-delete: move the entry to ~/.easyagent/.trash (recoverable). */
 export function deleteEntry(path: unknown): MutateResult {
   if (!realWithinProjectsRoot(path)) return { ok: false, error: "invalid-source" };
   const src = resolve(path as string);

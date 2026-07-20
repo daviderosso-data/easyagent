@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-const DIR = join(homedir(), ".easyclaude");
+const DIR = join(homedir(), ".easyagent");
 const FILE = join(DIR, "workspace.json");
 
 export interface WorkspacePanel {

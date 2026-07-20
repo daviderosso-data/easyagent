@@ -4,9 +4,9 @@ import { join } from "node:path";
 import { mkdirSync, rmSync, symlinkSync, existsSync } from "node:fs";
 import { validateCwd } from "@/server/security";
 
-const ROOT = join(homedir(), "easyclaude");
+const ROOT = join(homedir(), "easyagent");
 const REAL = join(ROOT, "cwd-test-real");
-const OUTSIDE = join(homedir(), "easyclaude-cwd-escape-target");
+const OUTSIDE = join(homedir(), "easyagent-cwd-escape-target");
 const LINK = join(ROOT, "cwd-test-link");
 
 beforeAll(() => {

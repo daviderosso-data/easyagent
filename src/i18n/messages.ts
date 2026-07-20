@@ -3,7 +3,7 @@ import type { Lang } from "@/lib/settings";
 // Central UI string table. English is the default/fallback.
 export const messages = {
   en: {
-    brand: "easyclaude",
+    brand: "easyagent",
     folder: "Folder",
     settings: "Settings",
     protected: "Protected",
@@ -155,7 +155,7 @@ export const messages = {
     // Save points (history)
     historyBtnTip: "Save points — go back in time",
     historyTitle: "Save points",
-    historyIntro: "easyclaude saves your project automatically before every change. Pick a point to see what changed or to go back.",
+    historyIntro: "easyagent saves your project automatically before every change. Pick a point to see what changed or to go back.",
     historyEmpty: "No save points yet — they appear after Claude makes changes.",
     historyGitMissing: "This feature needs the Git tool, which wasn't found on this computer.",
     historyRunningNote: "Wait for Claude to finish before going back.",
@@ -227,7 +227,7 @@ export const messages = {
     connBadFields: "Please check the fields and try again.",
     connAdded: "Added",
     presetGithubDesc: "Work with your GitHub repositories and issues",
-    presetFilesDesc: "Read and write files in your easyclaude folder",
+    presetFilesDesc: "Read and write files in your easyagent folder",
     presetMemoryDesc: "Remembers facts between conversations",
     reasonMcp: "uses an external connection",
 
@@ -325,7 +325,7 @@ export const messages = {
     reasonKill: "stops other running programs",
   },
   it: {
-    brand: "easyclaude",
+    brand: "easyagent",
     folder: "Cartella",
     settings: "Impostazioni",
     protected: "Protetto",
@@ -468,7 +468,7 @@ export const messages = {
     // Save points (history)
     historyBtnTip: "Punti di salvataggio — torna indietro nel tempo",
     historyTitle: "Punti di salvataggio",
-    historyIntro: "easyclaude salva il progetto automaticamente prima di ogni modifica. Scegli un punto per vedere le modifiche o tornare indietro.",
+    historyIntro: "easyagent salva il progetto automaticamente prima di ogni modifica. Scegli un punto per vedere le modifiche o tornare indietro.",
     historyEmpty: "Nessun punto di salvataggio — compariranno dopo le modifiche di Claude.",
     historyGitMissing: "Questa funzione richiede lo strumento Git, che non è stato trovato su questo computer.",
     historyRunningNote: "Aspetta che Claude finisca prima di tornare indietro.",
@@ -540,7 +540,7 @@ export const messages = {
     connBadFields: "Controlla i campi e riprova.",
     connAdded: "Aggiunto",
     presetGithubDesc: "Lavora con i tuoi repository e issue GitHub",
-    presetFilesDesc: "Legge e scrive file nella tua cartella easyclaude",
+    presetFilesDesc: "Legge e scrive file nella tua cartella easyagent",
     presetMemoryDesc: "Ricorda le cose tra una conversazione e l'altra",
     reasonMcp: "usa un collegamento esterno",
 

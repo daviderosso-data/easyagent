@@ -6,7 +6,7 @@ import { startStaticServer } from "@/server/static-server";
 import { PROJECTS_ROOT } from "@/server/projects";
 
 const WS = join(PROJECTS_ROOT, "static-server-test");
-const OUTSIDE = join(homedir(), "easyclaude-static-escape.txt");
+const OUTSIDE = join(homedir(), "easyagent-static-escape.txt");
 let srv: { close: () => void; port: number; url: string };
 
 beforeAll(async () => {
@@ -41,7 +41,7 @@ describe("static preview server", () => {
   });
 
   it("blocks path traversal in all encodings", async () => {
-    for (const p of ["/../easyclaude-static-escape.txt", "/%2e%2e%2fescape", "/..%2f..%2fetc%2fpasswd"]) {
+    for (const p of ["/../easyagent-static-escape.txt", "/%2e%2e%2fescape", "/..%2f..%2fetc%2fpasswd"]) {
       const r = await get(p);
       expect([400, 404]).toContain(r.status);
     }

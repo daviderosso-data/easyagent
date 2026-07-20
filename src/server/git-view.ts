@@ -74,7 +74,7 @@ export async function projectGitCommit(projectRoot: string, message: string): Pr
   let commit = await runGit(["commit", "-m", message], opts);
   if (!commit.ok && /tell me who you are|user\.name|user\.email/i.test(commit.stderr + commit.stdout)) {
     commit = await runGit(
-      ["-c", "user.name=easyclaude", "-c", "user.email=save@easyclaude.local", "commit", "-m", message],
+      ["-c", "user.name=easyagent", "-c", "user.email=save@easyagent.local", "commit", "-m", message],
       opts
     );
   }

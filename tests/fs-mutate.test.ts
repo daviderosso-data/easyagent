@@ -11,7 +11,7 @@ import {
   searchFiles,
 } from "@/server/fs-mutate";
 
-const ROOT = join(homedir(), "easyclaude");
+const ROOT = join(homedir(), "easyagent");
 const WS = join(ROOT, "fs-mutate-test");
 
 beforeEach(() => {
@@ -20,7 +20,7 @@ beforeEach(() => {
 });
 afterAll(() => {
   rmSync(WS, { recursive: true, force: true });
-  rmSync(join(homedir(), "easyclaude-mutate-escape"), { recursive: true, force: true });
+  rmSync(join(homedir(), "easyagent-mutate-escape"), { recursive: true, force: true });
 });
 
 describe("write/create confinement", () => {
@@ -43,7 +43,7 @@ describe("write/create confinement", () => {
   });
 
   it("rejects a write whose parent is a symlink escaping the root", () => {
-    const outside = join(homedir(), "easyclaude-mutate-escape");
+    const outside = join(homedir(), "easyagent-mutate-escape");
     mkdirSync(outside, { recursive: true });
     const link = join(WS, "link");
     if (existsSync(link)) rmSync(link);

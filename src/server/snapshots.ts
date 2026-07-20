@@ -126,7 +126,7 @@ export async function snapshotBeforeTurn(cwd: string, prompt: string, turnId: st
       await commitAll(projectRoot, `${excerpt(prompt)}\n\nTurn: ${turnId}`);
     });
   } catch (e) {
-    console.warn("[easyclaude] snapshot skipped:", (e as Error).message);
+    console.warn("[easyagent] snapshot skipped:", (e as Error).message);
   }
 }
 

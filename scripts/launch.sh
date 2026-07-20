@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# easyclaude - one-click launcher (macOS / Linux).
+# easyagent - one-click launcher (macOS / Linux).
 # Builds if needed, forces subscription auth, starts the local server, opens the browser.
 # Note: deliberately ASCII-only and NOT using `set -u` -- the stock macOS bash 3.2
 # mis-parses non-ASCII bytes next to "$VAR", which broke earlier versions.
@@ -29,7 +29,7 @@ open_browser() {
   else echo "Open this in your browser: ${URL}"; fi
 }
 
-echo "> easyclaude - starting..."
+echo "> easyagent - starting..."
 
 if ! command -v npm >/dev/null 2>&1; then
   echo "!! Node.js not found. Install it from https://nodejs.org and try again."
@@ -38,7 +38,7 @@ fi
 
 # Next 16 needs Node >= 20.9. Let node itself do the semver comparison.
 if ! node -e 'var v=process.versions.node.split(".").map(Number);process.exit(v[0]>20||(v[0]===20&&v[1]>=9)?0:1)' 2>/dev/null; then
-  echo "!! Your Node.js is too old ($(node -v 2>/dev/null)). easyclaude needs 20.9 or newer."
+  echo "!! Your Node.js is too old ($(node -v 2>/dev/null)). easyagent needs 20.9 or newer."
   echo "   Update it from https://nodejs.org and try again."
   pause_and_exit 1
 fi
@@ -55,7 +55,7 @@ fi
 
 # Already serving? Just open the browser.
 if curl -s -m 2 "${URL}/api/config" >/dev/null 2>&1; then
-  echo "> easyclaude is already running."
+  echo "> easyagent is already running."
   open_browser
   exit 0
 fi
@@ -74,7 +74,7 @@ done
 
 open_browser
 echo "> Ready! The app is open in your browser."
-echo "  Close this window (or press Ctrl+C) to stop easyclaude."
+echo "  Close this window (or press Ctrl+C) to stop easyagent."
 
 trap 'kill "${SERVER_PID}" 2>/dev/null' EXIT INT TERM
 wait "${SERVER_PID}"

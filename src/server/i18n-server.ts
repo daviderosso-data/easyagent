@@ -19,8 +19,8 @@ export function blockedReason(severity: string, lang: Lang): string {
   const r = REASONS[severity];
   const reason = r ? r[lang] : lang === "it" ? "non è consentita" : "is not allowed";
   return lang === "it"
-    ? `Azione bloccata da easyclaude: ${reason}.`
-    : `Action blocked by easyclaude: ${reason}.`;
+    ? `Azione bloccata da easyagent: ${reason}.`
+    : `Action blocked by easyagent: ${reason}.`;
 }
 
 export function authError(lang: Lang): string {

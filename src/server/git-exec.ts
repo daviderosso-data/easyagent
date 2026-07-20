@@ -44,10 +44,10 @@ export function shadowEnv(): NodeJS.ProcessEnv {
     ...process.env,
     GIT_CONFIG_GLOBAL: devNull,
     GIT_CONFIG_NOSYSTEM: "1",
-    GIT_AUTHOR_NAME: "easyclaude",
-    GIT_AUTHOR_EMAIL: "save@easyclaude.local",
-    GIT_COMMITTER_NAME: "easyclaude",
-    GIT_COMMITTER_EMAIL: "save@easyclaude.local",
+    GIT_AUTHOR_NAME: "easyagent",
+    GIT_AUTHOR_EMAIL: "save@easyagent.local",
+    GIT_COMMITTER_NAME: "easyagent",
+    GIT_COMMITTER_EMAIL: "save@easyagent.local",
     GIT_TERMINAL_PROMPT: "0",
   };
 }

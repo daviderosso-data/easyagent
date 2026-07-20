@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { validateEntry, buildMcpConfig, entryFromPreset, type McpEntry } from "@/server/mcp-store";
 
-// Pure-function tests only — the real ~/.easyclaude/mcp.json is never touched.
+// Pure-function tests only — the real ~/.easyagent/mcp.json is never touched.
 
 const base = (over: Partial<McpEntry> = {}): McpEntry => ({
   id: "x1",
