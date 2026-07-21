@@ -48,9 +48,25 @@ export function FileTree() {
   const bump = useCallback(() => setReloadKey((k) => k + 1), []);
 
   useEffect(() => {
-    if (!cwd) return;
+    if (!cwd) {
+      // No pinned project on screen → nothing to show (and nothing stale).
+      setRoot(null);
+      setQuery("");
+      setHits(null);
+      return;
+    }
     apiListDir(cwd, token).then((d) => setRoot(d.ok ? d.entries ?? [] : []));
   }, [cwd, token, reloadKey]);
+
+  // Open editor tabs belong to a project: when the project on screen changes
+  // (or closes), tabs pointing outside it go away.
+  useEffect(() => {
+    setTabs((cur) => {
+      const kept = cwd ? cur.filter((tab) => tab.path.startsWith(cwd + "/")) : [];
+      return kept.length === cur.length ? cur : kept;
+    });
+    setActivePath((p) => (p && cwd && p.startsWith(cwd + "/") ? p : null));
+  }, [cwd]);
 
   // Refresh the tree when a turn finishes (files may have changed).
   useEffect(() => {
@@ -220,7 +236,7 @@ export function FileTree() {
               </button>
             ))
           )
-        ) : root === null ? (
+        ) : !cwd ? null : root === null ? (
           <div className="ft-empty">…</div>
         ) : root.length === 0 ? (
           <div className="ft-empty">{t("emptyFolder")}</div>
