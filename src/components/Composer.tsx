@@ -11,9 +11,13 @@ export function Composer({ id }: { id: string }) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const running = useAgent((s) => s.sessions[id]?.running ?? false);
   const cwd = useAgent((s) => s.sessions[id]?.cwd ?? "");
+  const provider = useAgent((s) => s.sessions[id]?.provider ?? "claude");
+  const providers = useAgent((s) => s.providers);
   const send = useAgent((s) => s.send);
   const stop = useAgent((s) => s.stop);
   const t = useT();
+  // The palette lists Claude Code slash commands — hide it on engines without them.
+  const slashCommands = providers.find((p) => p.id === provider)?.capabilities.slashCommands ?? provider === "claude";
 
   const presets: { label: string; prompt: string }[] = [
     { label: t("presetExplain"), prompt: "Explain what this project does and how it's organized, in simple terms." },
@@ -41,14 +45,16 @@ export function Composer({ id }: { id: string }) {
   return (
     <div className="composer">
       <div className="presets">
-        <button
-          className="cmd-trigger"
-          disabled={running || !cwd}
-          onClick={() => setPaletteOpen(true)}
-          title={t("commandsTip")}
-        >
-          / {t("commands")}
-        </button>
+        {slashCommands && (
+          <button
+            className="cmd-trigger"
+            disabled={running || !cwd}
+            onClick={() => setPaletteOpen(true)}
+            title={t("commandsTip")}
+          >
+            / {t("commands")}
+          </button>
+        )}
         {presets.map((p) => (
           <button
             key={p.label}

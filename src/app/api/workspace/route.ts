@@ -13,13 +13,16 @@ const Schema = z.object({
     .array(
       z.object({
         projectPath: z.string(),
+        provider: z.string().optional(),
         selModel: z.string().nullable().optional(),
         effort: z.string().optional(),
         sessionId: z.string().nullable().optional(),
         roleLabel: z.string().optional(),
       }),
     )
-    .max(8),
+    // Must match MAX_PANELS (src/store/agent.ts) or the 9th/10th panel would
+    // silently fail to persist.
+    .max(10),
   activeIndex: z.number().int().min(0),
 });
 

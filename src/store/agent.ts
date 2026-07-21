@@ -4,6 +4,7 @@ import { create } from "zustand";
 import type { AgentEvent } from "@/lib/agent-events";
 import type { AppSettings, Lang, Theme, SecurityConfig } from "@/lib/settings";
 import type { Effort } from "@/lib/models";
+import type { ProviderInfo } from "@/lib/providers-client";
 import { DEFAULT_SETTINGS, PROFILES, detectProfile } from "@/lib/settings";
 import { streamAgent } from "@/lib/sse-client";
 import { clearCommandsCache } from "@/lib/commands-client";
@@ -55,6 +56,8 @@ export interface Session {
   systemAppend?: string;
   /** Server-minted grant for orchestration turns (autonomous-but-safe config). */
   orchestrationGrant?: string;
+  /** Engine running this chat (undefined = default, Claude). */
+  provider?: string;
   /** Per-chat model override (null/undefined = default). */
   selModel?: string | null;
   /** Per-chat reasoning effort (undefined = default). */
@@ -125,6 +128,8 @@ interface AppState {
   lang: Lang;
   settings: AppSettings;
   orch: OrchState;
+  /** Engines catalogue from /api/providers (empty until loaded). */
+  providers: ProviderInfo[];
   /** Bumped when files change outside the editor (e.g. save-point restore) so
    *  the tree and open tabs reload from disk. */
   fsRefresh: number;
@@ -145,8 +150,10 @@ interface AppState {
   dismissOrchestration: () => void;
 
   setCwd: (id: string, cwd: string) => void;
+  setProvider: (id: string, provider: string) => void;
   setModel: (id: string, model: string | null) => void;
   setEffort: (id: string, effort: Effort | undefined) => void;
+  loadProviders: () => Promise<void>;
   openProjectNewChat: (id: string, projectPath: string) => void;
   resumeSession: (id: string, projectPath: string, sessionId: string) => Promise<void>;
   initWorkspace: () => Promise<void>;
@@ -201,9 +208,21 @@ export const useAgent = create<AppState>((set, get) => ({
   lang: "en",
   settings: DEFAULT_SETTINGS,
   orch: IDLE_ORCH,
+  providers: [],
   fsRefresh: 0,
 
   setToken: (token) => set({ token }),
+
+  loadProviders: async () => {
+    try {
+      const r = await fetch("/api/providers", { headers: authHeaders(get().token) });
+      if (!r.ok) return;
+      const d = await r.json();
+      if (Array.isArray(d.providers) && d.providers.length) set({ providers: d.providers });
+    } catch {
+      /* engines dropdown falls back to Claude-only */
+    }
+  },
 
   bumpFsRefresh: () => set((s) => ({ fsRefresh: s.fsRefresh + 1 })),
 
@@ -442,6 +461,17 @@ export const useAgent = create<AppState>((set, get) => ({
     scheduleSaveWorkspace();
   },
 
+  setProvider: (id, provider) => {
+    updateSession(id, (s) =>
+      s.provider === provider || (!s.provider && provider === "claude")
+        ? s
+        : // A session id belongs to its engine — switching engines starts a
+          // fresh conversation (the visible transcript stays).
+          { ...s, provider, selModel: null, effort: undefined, sessionId: null },
+    );
+    scheduleSaveWorkspace();
+  },
+
   setModel: (id, model) => {
     updateSession(id, (s) => ({ ...s, selModel: model }));
     scheduleSaveWorkspace();
@@ -492,6 +522,7 @@ export const useAgent = create<AppState>((set, get) => ({
 
   initWorkspace: async () => {
     const token = get().token;
+    void get().loadProviders();
     const [w, pj] = await Promise.all([
       fetch("/api/workspace").then((r) => r.json()).catch(() => ({ panels: [] })),
       fetch("/api/projects").then((r) => r.json()).catch(() => ({ projects: [] })),
@@ -503,6 +534,7 @@ export const useAgent = create<AppState>((set, get) => ({
       const panels: string[] = [];
       for (const p of wpanels) {
         const s = newSession(p.projectPath);
+        s.provider = p.provider;
         s.selModel = p.selModel ?? null;
         s.effort = p.effort;
         s.roleLabel = p.roleLabel;
@@ -546,6 +578,7 @@ export const useAgent = create<AppState>((set, get) => ({
         cwd: session.cwd,
         lang: st.lang,
         sessionId: session.sessionId ?? undefined,
+        provider: session.provider,
         model: session.selModel ?? undefined,
         effort: session.effort,
         systemAppend: session.systemAppend,
@@ -662,6 +695,7 @@ function scheduleSaveWorkspace() {
         const s = st.sessions[id];
         return {
           projectPath: s?.cwd || "",
+          provider: s?.provider,
           selModel: s?.selModel ?? null,
           effort: s?.effort,
           sessionId: s?.sessionId ?? null,

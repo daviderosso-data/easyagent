@@ -1,10 +1,14 @@
-// Provider registry. P5 registers only Claude; P6 adds the login-based CLIs
-// (Codex, Gemini) and local Ollama — see docs/providers.md.
+// Provider registry — see docs/providers.md for each engine's spike notes.
 
 import type { AgentProvider, ProviderId } from "@/server/providers/types";
 import { claudeProvider } from "@/server/providers/claude";
+import { codexProvider } from "@/server/providers/codex";
+import { grokProvider } from "@/server/providers/grok";
+import { ollamaProvider } from "@/server/providers/ollama";
 
-const registry = new Map<ProviderId, AgentProvider>([[claudeProvider.id, claudeProvider]]);
+const registry = new Map<ProviderId, AgentProvider>(
+  [claudeProvider, codexProvider, grokProvider, ollamaProvider].map((p) => [p.id, p]),
+);
 
 export const DEFAULT_PROVIDER_ID: ProviderId = "claude";
 

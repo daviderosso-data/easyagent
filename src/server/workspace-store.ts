@@ -7,6 +7,7 @@ const FILE = join(DIR, "workspace.json");
 
 export interface WorkspacePanel {
   projectPath: string;
+  provider?: string;
   selModel?: string | null;
   effort?: string;
   sessionId?: string | null;

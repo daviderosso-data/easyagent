@@ -22,11 +22,22 @@ describe("provider registry", () => {
   it("resolves known ids and rejects unknown ones", () => {
     expect(getProvider("claude")).toBe(claudeProvider);
     expect(getProvider("gpt-9000")).toBeNull();
-    expect(getProvider("codex")).toBeNull(); // not registered until P6
+    expect(getProvider("gemini")).toBeNull(); // postponed — reserved id, not registered
   });
 
-  it("lists only registered providers", () => {
-    expect(listProviders().map((p) => p.id)).toEqual(["claude"]);
+  it("lists the P6 engine lineup", () => {
+    expect(listProviders().map((p) => p.id)).toEqual(["claude", "codex", "grok", "ollama"]);
+  });
+
+  it("every provider satisfies the contract surface", () => {
+    for (const p of listProviders()) {
+      expect(typeof p.runTurn).toBe("function");
+      expect(typeof p.models).toBe("function");
+      expect(typeof p.status).toBe("function");
+      expect(Object.keys(p.capabilities).sort()).toEqual(
+        ["approvals", "effort", "mcp", "rateLimits", "resume", "skills", "slashCommands"].sort(),
+      );
+    }
   });
 });
 

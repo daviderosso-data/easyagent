@@ -9,9 +9,9 @@ import type { AgentEvent } from "@/lib/agent-events";
 import type { SecurityConfig, Lang } from "@/lib/settings";
 import type { Turn } from "@/server/session-manager";
 
-/** Engines the app can drive. P5 registers only "claude"; P6 (multi-engine via
- *  login) adds the others — see docs/providers.md for the spike findings. */
-export type ProviderId = "claude" | "codex" | "gemini" | "ollama";
+/** Engines the app can drive — see docs/providers.md for the spike findings.
+ *  ("gemini" is reserved: postponed by owner decision 2026-07-21.) */
+export type ProviderId = "claude" | "codex" | "grok" | "ollama" | "gemini";
 
 /** One turn, as handed to a provider by the neutral pipeline. */
 export interface TurnRequest {
@@ -61,6 +61,20 @@ export interface SessionSummary {
   lastModified: number;
 }
 
+/** One entry of the per-chat model selector. id null = engine default. */
+export interface ProviderModel {
+  id: string | null;
+  label: string;
+}
+
+/** Live availability, shown in the UI so a missing engine explains itself. */
+export interface EngineStatus {
+  /** The engine can run on this machine (binary found / daemon reachable). */
+  installed: boolean;
+  /** null = the engine needs no login (e.g. local models). */
+  loggedIn: boolean | null;
+}
+
 export interface AccountStatus {
   loggedIn: boolean;
   email?: string;
@@ -90,6 +104,10 @@ export interface AgentProvider {
   /** Stream one turn. Must emit `done` or `error` as its final event and never
    *  throw for normal failures (auth, abort, engine errors → events). */
   runTurn(req: TurnRequest): Promise<void>;
+  /** Options for the per-chat model selector (first entry = engine default). */
+  models(): Promise<ProviderModel[]>;
+  /** Availability probe for the UI. Must be fast (short timeouts) and never throw. */
+  status(): Promise<EngineStatus>;
   /** Absent when the engine needs no login (e.g. local models). */
   account?: AccountFacet;
   /** Absent when the engine has no stored sessions to browse. */

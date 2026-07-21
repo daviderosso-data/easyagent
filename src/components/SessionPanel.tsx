@@ -22,6 +22,9 @@ export function SessionPanel({ id, onChangeFolder }: { id: string; onChangeFolde
   const t = useT();
   const cwd = useAgent((s) => s.sessions[id]?.cwd ?? "");
   const roleLabel = useAgent((s) => s.sessions[id]?.roleLabel);
+  const provider = useAgent((s) => s.sessions[id]?.provider ?? "claude");
+  const providers = useAgent((s) => s.providers);
+  const setProvider = useAgent((s) => s.setProvider);
   const selModel = useAgent((s) => s.sessions[id]?.selModel ?? null);
   const effort = useAgent((s) => s.sessions[id]?.effort);
   const running = useAgent((s) => s.sessions[id]?.running ?? false);
@@ -40,6 +43,12 @@ export function SessionPanel({ id, onChangeFolder }: { id: string; onChangeFolde
 
   const folderName = cwd ? cwd.split("/").filter(Boolean).pop() : "—";
   const rootRef = useRef<HTMLElement | null>(null);
+
+  // Engine-specific selector data; before /api/providers loads (or if it
+  // fails) fall back to the static Claude catalogue.
+  const providerInfo = providers.find((p) => p.id === provider);
+  const models = providerInfo?.models ?? MODELS;
+  const effortSupported = providerInfo?.capabilities.effort ?? provider === "claude";
 
   // With 5+ panels the grid scrolls — bring the activated panel into view.
   useEffect(() => {
@@ -87,6 +96,22 @@ export function SessionPanel({ id, onChangeFolder }: { id: string; onChangeFolde
           <span className="folder-btn-name">{folderName}</span>
         </button>
 
+        {providers.length > 1 && (
+          <select
+            className="hdr-select"
+            value={provider}
+            title={t("engineTip")}
+            disabled={running}
+            onChange={(e) => setProvider(id, e.target.value)}
+          >
+            {providers.map((p) => (
+              <option key={p.id} value={p.id} disabled={!p.status.installed}>
+                {p.status.installed ? p.label : `${p.label} — ${t("notInstalled")}`}
+              </option>
+            ))}
+          </select>
+        )}
+
         <select
           className="hdr-select"
           value={selModel ?? ""}
@@ -94,26 +119,28 @@ export function SessionPanel({ id, onChangeFolder }: { id: string; onChangeFolde
           disabled={running}
           onChange={(e) => setModel(id, e.target.value || null)}
         >
-          {MODELS.map((m) => (
+          {models.map((m) => (
             <option key={m.id ?? "default"} value={m.id ?? ""}>
               {m.id ? m.label : t("optDefault")}
             </option>
           ))}
         </select>
 
-        <select
-          className="hdr-select"
-          value={effort ?? ""}
-          title={t("effortTip")}
-          disabled={running}
-          onChange={(e) => setEffort(id, (e.target.value || undefined) as Effort | undefined)}
-        >
-          {EFFORTS.map((ef) => (
-            <option key={ef.id || "default"} value={ef.id}>
-              {t(ef.key)}
-            </option>
-          ))}
-        </select>
+        {effortSupported && (
+          <select
+            className="hdr-select"
+            value={effort ?? ""}
+            title={t("effortTip")}
+            disabled={running}
+            onChange={(e) => setEffort(id, (e.target.value || undefined) as Effort | undefined)}
+          >
+            {EFFORTS.map((ef) => (
+              <option key={ef.id || "default"} value={ef.id}>
+                {t(ef.key)}
+              </option>
+            ))}
+          </select>
+        )}
 
         <span className="panel-head-spacer" />
         <button className="icon-btn icon-btn-sm" disabled={!cwd} title={t("historyBtnTip")} aria-label={t("historyBtnTip")} onClick={() => setHistoryOpen(true)}>
