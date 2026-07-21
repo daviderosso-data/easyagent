@@ -27,10 +27,26 @@ interface PresetInfo {
 }
 
 const PRESET_DESC: Record<string, MsgKey> = {
+  chrome: "presetChromeDesc",
   github: "presetGithubDesc",
   filesystem: "presetFilesDesc",
   memory: "presetMemoryDesc",
 };
+
+interface KeySpec {
+  name: string;
+  required: boolean;
+  secret: boolean;
+}
+interface MarketHit {
+  name: string;
+  short: string;
+  description: string;
+  repository?: string;
+  config:
+    | { kind: "stdio"; command: string; args: string[]; envKeys: KeySpec[] }
+    | { kind: "http" | "sse"; url: string; headerKeys: KeySpec[] };
+}
 
 const SECRETISH = /token|key|secret|pass|auth/i;
 
@@ -63,6 +79,11 @@ export function ConnectionsSection() {
   const [fArgs, setFArgs] = useState("");
   const [fUrl, setFUrl] = useState("");
   const [fKv, setFKv] = useState<KV[]>([]);
+  // MCP marketplace (official registry — slow, so search is explicit)
+  const [mq, setMq] = useState("");
+  const [mkt, setMkt] = useState<MarketHit[] | null>(null);
+  const [mktBusy, setMktBusy] = useState(false);
+  const [adding, setAdding] = useState<string | null>(null);
 
   const headers = useCallback(
     (): Record<string, string> => ({ "content-type": "application/json", ...(token ? { "x-ccw-token": token } : {}) }),
@@ -142,6 +163,56 @@ export function ConnectionsSection() {
       setTestResult({ id: e.id, ok: false });
     }
     setTesting(null);
+    await refresh();
+  };
+
+  const searchMarket = async () => {
+    if (mq.trim().length < 2) {
+      setMkt(null);
+      return;
+    }
+    setMktBusy(true);
+    try {
+      const r = await fetch(`/api/mcp/market?q=${encodeURIComponent(mq.trim())}`, { headers: headers() });
+      const d = await r.json();
+      setMkt(d.ok ? d.servers : []);
+    } catch {
+      setMkt([]);
+    }
+    setMktBusy(false);
+  };
+
+  const needsSetup = (h: MarketHit) =>
+    h.config.kind === "stdio" ? h.config.envKeys.some((k) => k.required) : h.config.headerKeys.some((k) => k.required);
+
+  const addFromMarket = async (h: MarketHit) => {
+    if (needsSetup(h)) {
+      // Pre-fill the manual form so the user only types the missing keys.
+      setShowForm(true);
+      setFName(h.short);
+      if (h.config.kind === "stdio") {
+        setFKind("stdio");
+        setFCommand(h.config.command);
+        setFArgs(h.config.args.join("\n"));
+        setFKv(h.config.envKeys.map((k) => ({ k: k.name, v: "" })));
+      } else {
+        setFKind("url");
+        setFSse(h.config.kind === "sse");
+        setFUrl(h.config.url);
+        setFKv(h.config.headerKeys.map((k) => ({ k: k.name, v: "" })));
+      }
+      return;
+    }
+    setAdding(h.name);
+    setFormErr(null);
+    const entry =
+      h.config.kind === "stdio"
+        ? { name: h.short, kind: "stdio", command: h.config.command, args: h.config.args }
+        : { name: h.short, kind: h.config.kind, url: h.config.url };
+    const r = await fetch("/api/mcp", { method: "POST", headers: headers(), body: JSON.stringify({ entry }) });
+    const d = await r.json();
+    if (!d.ok) setFormErr(t(errKey(d.error)));
+    setAdding(null);
     await refresh();
   };
 
@@ -226,6 +297,43 @@ export function ConnectionsSection() {
               {t("connSave")}
             </button>
           </div>
+        </div>
+      )}
+
+      <div className="git-commit-box">
+        <input
+          className="field-input"
+          value={mq}
+          placeholder={t("connSearchPh")}
+          spellCheck={false}
+          onChange={(e) => setMq(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && void searchMarket()}
+        />
+        <button className="btn btn-soft btn-sm" disabled={mktBusy || mq.trim().length < 2} onClick={() => void searchMarket()}>
+          {mktBusy ? "…" : "🔍"}
+        </button>
+      </div>
+      {mktBusy && <p className="settings-sub">{t("connMarketSlow")}</p>}
+      {mkt !== null && !mktBusy && (
+        <div className="conv-list market-list">
+          {mkt.length === 0 && <p className="settings-sub">{t("connMarketEmpty")}</p>}
+          {mkt.map((h) => {
+            const already = servers.some((s) => s.name === h.short);
+            return (
+              <div key={h.name} className="conn-row">
+                <b>{h.short}</b>
+                <span className="conn-meta">{h.description}</span>
+                <span className="panel-head-spacer" />
+                <button
+                  className="btn btn-soft btn-sm"
+                  disabled={already || adding !== null}
+                  onClick={() => void addFromMarket(h)}
+                >
+                  {already ? "✓" : adding === h.name ? "…" : `${t("connAdd")}${needsSetup(h) ? " 🔑" : ""}`}
+                </button>
+              </div>
+            );
+          })}
         </div>
       )}
 

@@ -15,6 +15,18 @@ interface SkillInfo {
   command: string;
 }
 
+interface MarketHit {
+  id: string;
+  skillId: string;
+  name: string;
+  installs: number;
+  source: string;
+}
+
+function fmtInstalls(n: number): string {
+  return n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1000 ? `${Math.round(n / 1000)}k` : String(n);
+}
+
 function generatorPrompt(desc: string, lang: "en" | "it"): string {
   const base = `Create a new reusable skill for this project.
 What it must be able to do (user's words): """${desc}"""
@@ -46,6 +58,11 @@ export function SkillsPanel({ panelId, onClose }: { panelId: string; onClose: ()
   const [desc, setDesc] = useState("");
   const [confirmDel, setConfirmDel] = useState(false);
   const [err, setErr] = useState(false);
+  // skills.sh marketplace
+  const [q, setQ] = useState("");
+  const [market, setMarket] = useState<MarketHit[] | null>(null);
+  const [installing, setInstalling] = useState<string | null>(null);
+  const [installErr, setInstallErr] = useState<string | null>(null);
 
   const headers = useCallback(
     (): Record<string, string> => ({ "content-type": "application/json", ...(token ? { "x-ccw-token": token } : {}) }),
@@ -66,6 +83,42 @@ export function SkillsPanel({ panelId, onClose }: { panelId: string; onClose: ()
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  // Debounced marketplace search (proxied server-side — skills.sh has no CORS).
+  useEffect(() => {
+    if (q.trim().length < 2) {
+      setMarket(null);
+      return;
+    }
+    const h = setTimeout(() => {
+      fetch(`/api/skills/market?q=${encodeURIComponent(q.trim())}`, { headers: headers() })
+        .then((r) => r.json())
+        .then((d) => setMarket(d.ok ? d.skills : []))
+        .catch(() => setMarket([]));
+    }, 300);
+    return () => clearTimeout(h);
+  }, [q, headers]);
+
+  const install = async (hit: MarketHit) => {
+    setInstalling(hit.id);
+    setInstallErr(null);
+    try {
+      const r = await fetch("/api/skills/install", {
+        method: "POST",
+        headers: headers(),
+        body: JSON.stringify({ cwd, source: hit.source, skillId: hit.skillId }),
+      });
+      const d = await r.json();
+      if (!d.ok) setInstallErr(hit.id);
+      else {
+        clearCommandsCache(cwd);
+        await refresh();
+      }
+    } catch {
+      setInstallErr(hit.id);
+    }
+    setInstalling(null);
+  };
 
   const openDetail = async (s: SkillInfo) => {
     setDetail(s);
@@ -169,9 +222,41 @@ export function SkillsPanel({ panelId, onClose }: { panelId: string; onClose: ()
           ) : (
             <>
               <p className="settings-sub">{t("skillsIntro")}</p>
+              <input
+                className="field-input"
+                value={q}
+                placeholder={t("skillsSearchPh")}
+                spellCheck={false}
+                onChange={(e) => setQ(e.target.value)}
+              />
+              {market !== null && (
+                <div className="conv-list market-list">
+                  {market.length === 0 && <p className="settings-sub">{t("skillsMarketEmpty")}</p>}
+                  {market.map((h) => {
+                    const already = skills?.some((s) => s.dir.split("/").pop() === h.skillId);
+                    return (
+                      <div key={h.id} className="conv-row skill-row">
+                        <span className="conv-title">
+                          {h.name}
+                          <span className="hist-badge skill-badge">⬇ {fmtInstalls(h.installs)}</span>
+                        </span>
+                        <span className="conv-date">{h.source}</span>
+                        {installErr === h.id && <span className="red-warning">{t("skillsInstallErr")}</span>}
+                        <button
+                          className="btn btn-soft btn-sm"
+                          disabled={!cwd || installing !== null || already}
+                          onClick={() => void install(h)}
+                        >
+                          {already ? "✓" : installing === h.id ? t("skillsInstalling") : t("skillsInstall")}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
               {err && <p className="red-warning">{t("skillsLoadError")}</p>}
-              {skills !== null && skills.length === 0 && <p className="settings-sub">{t("skillsEmpty")}</p>}
-              {skills !== null && skills.length > 0 && (
+              {market === null && skills !== null && skills.length === 0 && <p className="settings-sub">{t("skillsEmpty")}</p>}
+              {market === null && skills !== null && skills.length > 0 && (
                 <div className="conv-list">
                   {skills.map((s) => (
                     <div key={s.dir} className="conv-row skill-row" onClick={() => void openDetail(s)}>

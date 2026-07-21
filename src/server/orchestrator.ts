@@ -120,8 +120,9 @@ export async function planOrchestration(
   const prompt =
     `Goal: ${goal}\n\n` +
     (answers
-      ? `The user answered your earlier structure questions:\n${answers}\n\n` +
-        `Refine the plan accordingly. Only ask NEW questions if something essential is still ambiguous.\n\n`
+      ? `The user answered your earlier structure questions and/or added instructions:\n${answers}\n\n` +
+        `Refine the plan accordingly. If the new input leaves something essential ambiguous, ask up to 2 NEW ` +
+        `questions; otherwise return an empty questions array.\n\n`
       : "") +
     "Output the JSON plan (and nothing else).";
   try {

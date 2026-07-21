@@ -22,14 +22,13 @@ export function resolveGrokBin(): string | null {
 }
 
 /** Map the app's security config to grok's headless policy flags. Headless
- *  grok cannot prompt, so confined profiles get the workspace sandbox with
- *  edits allowed — the agent must be able to modify project files; the
- *  kernel sandbox (not a prompt) is the guard. */
+ *  grok cannot prompt and (live-verified 0.2.106) permission modes that keep
+ *  ANY approval step — acceptEdits/auto/dontAsk — end the turn with
+ *  stopReason "Cancelled" the moment a tool needs a green light; only
+ *  --always-approve completes tool work. So every profile gets
+ *  --always-approve and the kernel workspace sandbox is the guard. */
 export function grokSafetyArgs(c: SecurityConfig): string[] {
-  const args: string[] = [];
-  if (c.sandbox) args.push("--sandbox", "workspace");
-  args.push("--permission-mode", c.behavior === "open" ? "bypassPermissions" : "acceptEdits");
-  return args;
+  return [...(c.sandbox ? ["--sandbox", "workspace"] : []), "--always-approve"];
 }
 
 /** Our effort scale → grok's --reasoning-effort (none|low|medium|high|xhigh). */
@@ -44,15 +43,19 @@ interface MapCtx {
   started: number;
 }
 
-/** Map one parsed NDJSON event to AgentEvents (pure — unit-tested). */
+/** Map one parsed NDJSON event to AgentEvents (pure — unit-tested).
+ *  Live-verified shapes (grok 0.2.106, authenticated, 2026-07-21): token
+ *  deltas are {"type":"text"|"thought","data":"…"}; the terminal event is
+ *  {"type":"end","stopReason":"EndTurn","sessionId":"…","usage":{
+ *  input_tokens, cache_read_input_tokens, output_tokens, …},"num_turns":1}. */
 export function mapGrokEvent(ev: any, ctx: MapCtx): AgentEvent[] {
   const t = ev?.type;
-  if (t === "text" && typeof ev.text === "string" && ev.text) {
-    return [{ type: "text", id: ctx.msgId, text: ev.text }];
+  const delta = typeof ev?.data === "string" ? ev.data : typeof ev?.text === "string" ? ev.text : "";
+  if (t === "text") {
+    return delta ? [{ type: "text", id: ctx.msgId, text: delta }] : [];
   }
   if (t === "thought") {
-    const text = typeof ev.text === "string" ? ev.text : typeof ev.thought === "string" ? ev.thought : "";
-    return text ? [{ type: "thinking", id: ctx.msgId, text }] : [];
+    return delta ? [{ type: "thinking", id: ctx.msgId, text: delta }] : [];
   }
   if (t === "error") {
     return [{ type: "error", message: typeof ev.message === "string" ? ev.message : "Grok error" }];
@@ -64,7 +67,7 @@ export function mapGrokEvent(ev: any, ctx: MapCtx): AgentEvent[] {
         type: "done",
         sessionId: ev.sessionId ?? ev.session_id ?? ctx.fallbackSessionId,
         isError: false,
-        subtype: typeof ev.stopReason === "string" ? ev.stopReason : "success",
+        subtype: ev.stopReason === "EndTurn" ? "success" : typeof ev.stopReason === "string" ? ev.stopReason : "success",
         numTurns: typeof ev.num_turns === "number" ? ev.num_turns : 1,
         durationMs: Date.now() - ctx.started,
         totalCostUsd: typeof ev.total_cost_usd === "number" ? ev.total_cost_usd : 0,
