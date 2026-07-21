@@ -42,9 +42,9 @@ capture (`providers/claude/runner.ts#captureRateLimits`).
 
 ## P6 spike — engine probes (verified 2026-07-21)
 
-All three target engines expose a headless path a web GUI can drive. Event
-models differ substantially; the `AgentEvent` mapping layer per engine is the
-real work of P6.
+All probed engines expose a headless path a web GUI can drive. Event models
+differ substantially; the `AgentEvent` mapping layer per engine is the real
+work of P6.
 
 ### OpenAI Codex CLI (`@openai/codex`, probed v0.144.6, Apache-2.0)
 
@@ -80,6 +80,41 @@ real work of P6.
   policy engine files).
 - Unverified without login: `stream-json` event vocabulary, free-tier quotas.
 
+### xAI Grok Build (`grok`, probed v0.2.106, Apache-2.0) — official, added 2026-07-21
+
+xAI ships an official agentic CLI, **Grok Build** (github.com/xai-org/grok-build,
+Rust, open-sourced 2026-07-15, ~21k stars; installed via `x.ai/cli` script or
+brew cask `grok-build` — not on npm). Its flag surface is deliberately
+Claude Code-compatible, making it the easiest engine to adapt after Claude:
+
+- Headless: `grok -p <prompt> --output-format json|streaming-json` (NDJSON
+  events `text|thought|end|error`; `end` carries usage + cost — cost is often
+  absent on subscription runs), `--json-schema` for structured output,
+  `--reasoning-effort none..xhigh`, `-m` model, exit codes 0/1/130/143.
+- **ACP**: `grok agent stdio` (JSON-RPC over stdio: streamed `session/update`
+  plus **interactive permission round-trips** — the only path for our approval
+  modal; headless approvals are policy-only). Also `agent serve` (WebSocket,
+  survives reconnects) and `agent headless` (outbound relay, explicitly "for
+  building web UIs").
+- Permissions: `--permission-mode default|acceptEdits|auto|dontAsk|bypassPermissions|plan`,
+  repeatable `--allow`/`--deny` rules (`Bash(npm*)` style), `--sandbox
+  off|workspace|devbox|read-only|strict` kernel-enforced (Seatbelt on macOS;
+  child-process network blocking is Linux-only), custom deny globs (`.env`,
+  `**/*.pem`) — maps cleanly onto our three profiles.
+- Auth: browser OAuth with the user's **SuperGrok / X Premium+ subscription**
+  (or `grok login --device-code`), `XAI_API_KEY` fallback; credentials in
+  `~/.grok/auth.json` (0600); `GROK_HOME` relocates all state. Auth check:
+  `grok models` prints "You are not authenticated." (text-only, no `--json`).
+  Unauthenticated headless run fails instantly with a single JSON error
+  event, exit 1 — clean detection.
+- Sessions (`-c`, `-r`, `--session-id`, `--fork-session`; SQLite under
+  `~/.grok/sessions/`), git worktrees, MCP/skills/plugins/hooks, `export`.
+- Cautions: auto-updater (set `GROK_DISABLE_AUTOUPDATER=1`); subscription
+  usage draws from one weekly pool shared across all Grok products; the
+  community npm `@vibe-kit/grok-cli` also installs a `grok` binary and abuses
+  `~/.grok` — detect collisions; corporate churn (xAI → SpaceX 2026-02,
+  "SpaceXAI" rebrand 2026-07) makes terms worth re-checking at P6 time.
+
 ### Ollama (local, probed v0.32.1)
 
 - Local HTTP API, no auth: `GET /api/tags` (models + capabilities),
@@ -103,6 +138,7 @@ multi-tenant, each user of an open-sourced build brings their own login).
 | OpenAI Codex CLI | **Gray, tolerated** — spawning the official binary that holds its own ChatGPT login; docs recommend API keys for "programmatic workflows" but document `codex exec` reusing saved auth, and the App Server is an official third-party-client surface | No | API key |
 | Google Gemini CLI | **Prohibited-leaning** — the free personal-OAuth tier was shut down 2026-06-18 (moved to closed-source Antigravity CLI, whose ToS ban "products not provided by us"); Gemini CLI's own ToS doc names third-party OAuth use as a violation, remedy = account suspension | **Yes** (both Gemini CLI docs and Antigravity ToS) | `GEMINI_API_KEY` (Gemini API terms — built for programmatic use) |
 | Ollama | Local, no auth, MIT | No | — |
+| xAI Grok Build | **Allowed** — xAI runs an explicit "use your Grok subscription in third-party agents" OAuth program (Hermes, OpenClaw, OpenCode, Kilo Code, Warp) and markets ACP for "your own bots and agent orchestration apps"; wrapping the official CLI with the user's own login is the sanctioned pattern | AUP bans automated access to *consumer* surfaces (don't reverse-engineer grok.com); no anti-wrapper clause for CLI/OAuth/API paths | `XAI_API_KEY` on OpenAI-compatible `api.x.ai/v1` (expressly licensed "Bundled Services" grant) |
 
 Consequences for P6:
 
@@ -115,8 +151,16 @@ Consequences for P6:
   Identify the client honestly; watch for an Anthropic-style policy line being
   drawn later.
 - **Gemini**: the "login not API key" decision (2026-07-20) is not achievable
-  within terms — plan on **API-key auth** for Gemini (or skip it), and get
-  explicit owner sign-off before any OAuth-based Gemini integration.
+  within terms. **Owner decision 2026-07-21: Gemini is postponed** (neither
+  login nor API key for now).
+- **Grok**: viable third engine, structurally the closest twin of the Claude
+  integration (subscription login held by the official binary, streaming
+  JSON, per-tool approvals via ACP, sandbox/permission flags mapping onto our
+  profiles). Two adapter strategies: per-turn `grok -p … --output-format
+  streaming-json -r <sessionId>`, or persistent `grok agent stdio` (ACP) when
+  we need interactive approvals. Don't register our own OAuth client (no
+  public self-serve program) — ride the official CLI's login. Keep "Grok" out
+  of product name/logo/domain.
 - **Branding**: keep engine names out of the product name/logo/domain
   ("easyagent" ✓), describe compatibility nominatively ("works with …"), add a
   no-affiliation line to the README before open-sourcing.
