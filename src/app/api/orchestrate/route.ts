@@ -1,17 +1,35 @@
 import { join } from "node:path";
 import { z } from "zod";
 import { tokenValid } from "@/server/security";
-import { runOrchestrator } from "@/server/orchestrator";
-import { createProject, createProjectFolder, writeProjectFile, PROJECTS_ROOT } from "@/server/projects";
+import { createProject, createProjectFolder, writeProjectFile } from "@/server/projects";
 import { markOrchestrated } from "@/server/project-registry";
 import { orchestrationGrants } from "@/server/orchestration-grants";
+import { getProvider } from "@/server/providers";
 
 export const runtime = "nodejs";
-export const maxDuration = 180;
+export const maxDuration = 60;
 
+// Launch a REVIEWED plan (produced by /api/orchestrate/plan and confirmed by
+// the user): create the project + role folders + plan files and mint the
+// orchestration grant. No model call happens here.
 const BodySchema = z.object({
   goal: z.string().min(1).max(4000),
-  lang: z.enum(["en", "it"]).default("en"),
+  plan: z.object({
+    projectName: z.string().min(1).max(120),
+    brief: z.string().max(20_000),
+    roles: z
+      .array(
+        z.object({
+          role: z.string().min(1).max(80),
+          folder: z.string().min(1).max(80),
+          task: z.string().min(1).max(4000),
+          provider: z.string().max(40).optional(),
+          model: z.string().max(80).nullable().optional(),
+        }),
+      )
+      .min(1)
+      .max(3),
+  }),
 });
 
 export async function POST(req: Request) {
@@ -22,19 +40,30 @@ export async function POST(req: Request) {
   } catch {
     return Response.json({ ok: false, error: "Invalid request" }, { status: 400 });
   }
-
-  const plan = await runOrchestrator(body.goal, PROJECTS_ROOT);
-  if (!plan.ok || !plan.roles) return Response.json({ ok: false, error: plan.error ?? "Planning failed" });
+  const plan = body.plan;
+  // Engines were offered by /plan from the live registry, but re-validate:
+  // an unknown provider must not reach the turn route.
+  for (const r of plan.roles) {
+    if (r.provider && !getProvider(r.provider)) {
+      return Response.json({ ok: false, error: `Unknown engine "${r.provider}"` });
+    }
+  }
 
   // Every orchestration creates a brand-new project folder.
-  const proj = createProject(plan.projectName ?? "project");
+  const proj = createProject(plan.projectName);
   if (!proj.ok || !proj.path || !proj.name) return Response.json({ ok: false, error: "Could not create the project folder" });
-  markOrchestrated(proj.name, plan.projectName ?? proj.name);
+  markOrchestrated(proj.name, plan.projectName);
 
   // One subfolder per role inside the new project.
   const roles = plan.roles.map((r) => {
     const mk = createProjectFolder(proj.path!, r.folder);
-    return { role: r.role, folder: mk.ok && mk.path ? mk.path : proj.path!, task: r.task };
+    return {
+      role: r.role,
+      folder: mk.ok && mk.path ? mk.path : proj.path!,
+      task: r.task,
+      provider: r.provider,
+      model: r.model ?? null,
+    };
   });
 
   const md = [
@@ -44,11 +73,11 @@ export async function POST(req: Request) {
     "",
     "## Shared brief",
     "",
-    plan.brief ?? "",
+    plan.brief,
     "",
     "## Roles",
     "",
-    ...roles.map((r) => `- **${r.role}** (\`${r.folder.split("/").pop()}\`): ${r.task}`),
+    ...roles.map((r) => `- **${r.role}** (\`${r.folder.split("/").pop()}\`, ${r.provider ?? "claude"}${r.model ? ` / ${r.model}` : ""}): ${r.task}`),
     "",
     "## Status",
     "",
@@ -62,7 +91,7 @@ export async function POST(req: Request) {
     ok: true,
     projectRoot: proj.path,
     projectName: proj.name,
-    brief: plan.brief ?? "",
+    brief: plan.brief,
     roles,
     // Lets this orchestration's turns use the autonomous-but-safe config;
     // scoped to the project just created and time-limited.

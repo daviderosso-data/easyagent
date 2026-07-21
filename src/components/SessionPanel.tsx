@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAgent } from "@/store/agent";
 import { useT } from "@/i18n";
 import { MODELS, type Effort } from "@/lib/models";
+import { PANEL_COLORS, colorHex } from "@/lib/panel-colors";
 import { Transcript } from "@/components/Transcript";
 import { Composer } from "@/components/Composer";
 import { ApprovalModal } from "@/components/ApprovalModal";
@@ -38,7 +39,10 @@ export function SessionPanel({ id, onChangeFolder }: { id: string; onChangeFolde
   const previewUrl = useAgent((s) => s.sessions[id]?.previewUrl ?? null);
   const startPreview = useAgent((s) => s.startPreview);
   const refreshPreview = useAgent((s) => s.refreshPreview);
+  const color = useAgent((s) => s.sessions[id]?.color);
+  const setPanelColor = useAgent((s) => s.setPanelColor);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [colorOpen, setColorOpen] = useState(false);
   const placeholderRef = useRef<Window | null>(null);
 
   const folderName = cwd ? cwd.split("/").filter(Boolean).pop() : "—";
@@ -87,10 +91,51 @@ export function SessionPanel({ id, onChangeFolder }: { id: string; onChangeFolde
     void startPreview(id);
   };
 
+  const accent = colorHex(color);
   return (
-    <section ref={rootRef} className={`panel ${isActive && multi ? "panel-active" : ""}`} onMouseDown={() => setActive(id)}>
+    <section
+      ref={rootRef}
+      className={`panel ${isActive && multi ? "panel-active" : ""} ${accent ? "panel-colored" : ""}`}
+      style={accent ? ({ "--panel-accent": accent } as React.CSSProperties) : undefined}
+      onMouseDown={() => setActive(id)}
+    >
       <div className="panel-head">
-        {roleLabel && <span className="role-badge">{roleLabel}</span>}
+        <span className="color-wrap">
+          <button
+            className="color-dot-btn"
+            title={t("panelColorTip")}
+            aria-label={t("panelColorTip")}
+            style={accent ? { background: accent } : undefined}
+            onClick={() => setColorOpen((v) => !v)}
+          />
+          {colorOpen && (
+            <span className="color-pop" onMouseLeave={() => setColorOpen(false)}>
+              {PANEL_COLORS.map((c) => (
+                <button
+                  key={c.id}
+                  className={`color-swatch ${color === c.id ? "sel" : ""}`}
+                  style={{ background: c.hex }}
+                  aria-label={c.id}
+                  onClick={() => {
+                    setPanelColor(id, c.id);
+                    setColorOpen(false);
+                  }}
+                />
+              ))}
+              <button
+                className="color-swatch color-none"
+                aria-label="none"
+                onClick={() => {
+                  setPanelColor(id, undefined);
+                  setColorOpen(false);
+                }}
+              >
+                ∅
+              </button>
+            </span>
+          )}
+        </span>
+        {roleLabel && <span className="role-badge" style={accent ? { background: accent, color: "#fff" } : undefined}>{roleLabel}</span>}
         <button className="folder-btn folder-btn-sm" onClick={() => onChangeFolder(id)} title={cwd}>
           <span>📁</span>
           <span className="folder-btn-name">{folderName}</span>

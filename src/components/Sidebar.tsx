@@ -2,6 +2,7 @@
 
 import { useAgent, MAX_PANELS } from "@/store/agent";
 import { useT } from "@/i18n";
+import { colorHex } from "@/lib/panel-colors";
 import { FileTree } from "@/components/FileTree";
 
 export function Sidebar({
@@ -50,7 +51,12 @@ export function Sidebar({
               className={`session-row ${activePanel === pid ? "active" : ""}`}
               onClick={() => setActive(pid)}
             >
-              <span className="session-num">{i + 1}</span>
+              <span
+                className="session-num"
+                style={colorHex(s?.color) ? { background: colorHex(s?.color)!, color: "#fff" } : undefined}
+              >
+                {i + 1}
+              </span>
               <span className="session-name">{name}</span>
               {s?.running && <span className="session-dot" />}
             </button>
