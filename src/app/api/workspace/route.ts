@@ -13,6 +13,7 @@ const Schema = z.object({
     .array(
       z.object({
         projectPath: z.string(),
+        project: z.string().optional(),
         provider: z.string().optional(),
         color: z.string().max(20).optional(),
         selModel: z.string().nullable().optional(),
@@ -21,10 +22,13 @@ const Schema = z.object({
         roleLabel: z.string().optional(),
       }),
     )
-    // Must match MAX_PANELS (src/store/agent.ts) or the 9th/10th panel would
-    // silently fail to persist.
-    .max(10),
+    // MAX_PANELS (src/store/agent.ts) is now per pinned project; the global
+    // cap only bounds the persisted file size.
+    .max(60),
   activeIndex: z.number().int().min(0),
+  openProjects: z.array(z.string()).max(20).optional(),
+  activeProject: z.string().optional(),
+  viewMode: z.enum(["split", "tabs"]).optional(),
 });
 
 export async function PUT(req: Request) {

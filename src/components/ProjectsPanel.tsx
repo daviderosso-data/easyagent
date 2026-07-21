@@ -20,11 +20,33 @@ interface SessionSummary {
   lastModified: number;
 }
 
+/** Sentinel panelId: the picker was opened from the sidebar to PIN a project
+ *  (open it alongside the others) rather than to repoint an existing panel. */
+export const PIN_PICKER = "__pin__";
+
 export function ProjectsPanel({ panelId, onClose }: { panelId: string; onClose: () => void }) {
   const t = useT();
   const token = useAgent((s) => s.token);
   const openProjectNewChat = useAgent((s) => s.openProjectNewChat);
   const resumeSession = useAgent((s) => s.resumeSession);
+  const pinProject = useAgent((s) => s.pinProject);
+  const pinMode = panelId === PIN_PICKER;
+
+  const openInPanel = (path: string) => {
+    if (pinMode) {
+      pinProject(path); // activates the project (creating a session if needed)
+    } else {
+      openProjectNewChat(panelId, path);
+    }
+  };
+  const resumeInPanel = (path: string, sessionId: string) => {
+    if (pinMode) {
+      pinProject(path);
+      void resumeSession(useAgent.getState().activePanel, path, sessionId);
+    } else {
+      void resumeSession(panelId, path, sessionId);
+    }
+  };
 
   const [projects, setProjects] = useState<ProjectInfo[] | null>(null);
   const [selected, setSelected] = useState<ProjectInfo | null>(null);
@@ -87,7 +109,7 @@ export function ProjectsPanel({ panelId, onClose }: { panelId: string; onClose: 
             <button className="link-btn" onClick={() => { setSelected(null); setSessions(null); }}>
               ‹ {t("back")}
             </button>
-            <button className="btn btn-primary full-btn" onClick={() => { openProjectNewChat(panelId, selected.path); onClose(); }}>
+            <button className="btn btn-primary full-btn" onClick={() => { openInPanel(selected.path); onClose(); }}>
               ＋ {t("newChat")}
             </button>
             <h4 className="limits-title">{t("conversations")}</h4>
@@ -98,7 +120,7 @@ export function ProjectsPanel({ panelId, onClose }: { panelId: string; onClose: 
             ) : (
               <div className="conv-list">
                 {sessions.map((s) => (
-                  <button key={s.sessionId} className="conv-row" onClick={() => { void resumeSession(panelId, selected.path, s.sessionId); onClose(); }}>
+                  <button key={s.sessionId} className="conv-row" onClick={() => { resumeInPanel(selected.path, s.sessionId); onClose(); }}>
                     <span className="conv-title">{s.firstPrompt || t("untitledChat")}</span>
                     <span className="conv-date">{new Date(s.lastModified).toLocaleString()}</span>
                   </button>

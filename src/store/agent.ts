@@ -40,6 +40,9 @@ export interface PendingApproval {
 export interface Session {
   id: string;
   cwd: string;
+  /** Root path of the pinned project this session belongs to (cwd may be a
+   *  subfolder, e.g. orchestrator role panels). */
+  project?: string;
   items: Item[];
   running: boolean;
   turnId: string | null;
@@ -130,10 +133,18 @@ export interface OrchPlanInput {
 
 export const MAX_PANELS = 10;
 
+export type ViewMode = "split" | "tabs";
+
 interface AppState {
   sessions: Record<string, Session>;
   panels: string[];
   activePanel: string;
+  /** Pinned project roots, in sidebar order. */
+  openProjects: string[];
+  /** The pinned project whose sessions and files are on screen. */
+  activeProject: string;
+  /** Sessions layout: split grid or full-screen tabs. */
+  viewMode: ViewMode;
   token: string | null;
   lang: Lang;
   settings: AppSettings;
@@ -155,6 +166,10 @@ interface AppState {
   addPanel: (cwd: string) => void;
   removePanel: (id: string) => void;
   setActivePanel: (id: string) => void;
+  pinProject: (path: string) => void;
+  unpinProject: (path: string) => void;
+  activateProject: (path: string) => void;
+  setViewMode: (m: ViewMode) => void;
   runOrchestration: (goal: string, plan: OrchPlanInput) => Promise<void>;
   stopOrchestration: () => void;
   dismissOrchestration: () => void;
@@ -184,10 +199,11 @@ const nid = () => `i${Date.now()}_${counter++}`;
 let panelCounter = 0;
 const pid = () => `p${Date.now()}_${panelCounter++}`;
 
-function newSession(cwd: string): Session {
+function newSession(cwd: string, project?: string): Session {
   return {
     id: pid(),
     cwd,
+    project: project ?? (cwd || undefined),
     items: [],
     running: false,
     turnId: null,
@@ -220,6 +236,9 @@ export const useAgent = create<AppState>((set, get) => ({
   settings: DEFAULT_SETTINGS,
   orch: IDLE_ORCH,
   providers: [],
+  openProjects: [],
+  activeProject: "",
+  viewMode: "split",
   fsRefresh: 0,
 
   setToken: (token) => set({ token }),
@@ -318,20 +337,29 @@ export const useAgent = create<AppState>((set, get) => ({
   ensureFirstPanel: (cwd) => {
     if (get().panels.length > 0) return;
     const s = newSession(cwd);
-    set({ sessions: { [s.id]: s }, panels: [s.id], activePanel: s.id });
+    set({
+      sessions: { [s.id]: s },
+      panels: [s.id],
+      activePanel: s.id,
+      openProjects: cwd ? [cwd] : [],
+      activeProject: cwd,
+    });
   },
 
   addPanel: (cwd) => {
-    const { panels, sessions } = get();
-    if (panels.length >= MAX_PANELS) return;
-    const s = newSession(cwd);
+    const { panels, sessions, activeProject } = get();
+    const project = activeProject || cwd;
+    if (panels.filter((p) => sessions[p]?.project === project).length >= MAX_PANELS) return;
+    const s = newSession(cwd, project);
     set({ sessions: { ...sessions, [s.id]: s }, panels: [...panels, s.id], activePanel: s.id });
     scheduleSaveWorkspace();
   },
 
   removePanel: (id) => {
     const { panels, sessions, activePanel } = get();
-    if (panels.length <= 1) return;
+    const project = sessions[id]?.project;
+    const siblings = panels.filter((p) => sessions[p]?.project === project);
+    if (siblings.length <= 1) return; // a pinned project always keeps one session
     sessions[id]?.abortController?.abort();
     const rest = panels.filter((p) => p !== id);
     const nextSessions = { ...sessions };
@@ -339,12 +367,66 @@ export const useAgent = create<AppState>((set, get) => ({
     set({
       sessions: nextSessions,
       panels: rest,
-      activePanel: activePanel === id ? rest[0] : activePanel,
+      activePanel: activePanel === id ? siblings.filter((p) => p !== id)[0] : activePanel,
     });
     scheduleSaveWorkspace();
   },
 
   setActivePanel: (id) => set({ activePanel: id }),
+
+  activateProject: (path) => {
+    const { sessions, panels, activePanel } = get();
+    const mine = panels.filter((p) => sessions[p]?.project === path);
+    if (!mine.length) {
+      // A pinned project always has at least one session to land on.
+      const s = newSession(path);
+      set({
+        sessions: { ...sessions, [s.id]: s },
+        panels: [...panels, s.id],
+        activeProject: path,
+        activePanel: s.id,
+      });
+    } else {
+      const keep = mine.includes(activePanel) ? activePanel : mine[0];
+      set({ activeProject: path, activePanel: keep });
+    }
+    scheduleSaveWorkspace();
+  },
+
+  pinProject: (path) => {
+    const { openProjects } = get();
+    if (!openProjects.includes(path)) set({ openProjects: [...openProjects, path] });
+    get().activateProject(path);
+    touchProjectApi(path, get().token);
+  },
+
+  unpinProject: (path) => {
+    const st = get();
+    // Stop whatever the project is still running, then drop its sessions.
+    for (const pid2 of st.panels) {
+      const s = st.sessions[pid2];
+      if (s?.project === path && s.running) void st.stop(pid2);
+    }
+    const rest = st.panels.filter((p) => st.sessions[p]?.project !== path);
+    const nextSessions: Record<string, Session> = {};
+    for (const p of rest) nextSessions[p] = st.sessions[p];
+    const openProjects = st.openProjects.filter((p) => p !== path);
+    const activeProject = st.activeProject === path ? (openProjects[0] ?? "") : st.activeProject;
+    set({ sessions: nextSessions, panels: rest, openProjects, activeProject });
+    if (activeProject) {
+      get().activateProject(activeProject);
+    } else {
+      // Nothing pinned: keep one empty panel so the first-run guidance shows.
+      const s = newSession("");
+      set({ sessions: { [s.id]: s }, panels: [s.id], activePanel: s.id });
+    }
+    scheduleSaveWorkspace();
+  },
+
+  setViewMode: (m) => {
+    set({ viewMode: m });
+    scheduleSaveWorkspace();
+  },
 
   dismissOrchestration: () => set({ orch: IDLE_ORCH }),
 
@@ -362,21 +444,8 @@ export const useAgent = create<AppState>((set, get) => ({
   async runOrchestration(goal, plan) {
     const st0 = get();
     if (st0.orch.active) return;
-    // Don't orphan turns already running in existing panels: abort them first,
-    // otherwise the layout replacement below drops their controllers and the
-    // server turns keep occupying concurrency slots until restart.
-    for (const s of Object.values(st0.sessions)) {
-      if (s.running) {
-        s.abortController?.abort();
-        if (s.turnId) {
-          void fetch("/api/chat/stop", {
-            method: "POST",
-            headers: authHeaders(st0.token),
-            body: JSON.stringify({ turnId: s.turnId }),
-          }).catch(() => {});
-        }
-      }
-    }
+    // Other pinned projects keep their sessions (and running turns) — the
+    // orchestration lives in its own brand-new pinned project.
     set({ orch: { ...IDLE_ORCH, active: true, phase: "planning" } });
 
     // 1) Launch the reviewed plan — server creates the project + role
@@ -401,7 +470,7 @@ export const useAgent = create<AppState>((set, get) => ({
 
     // 2) Build panels: orchestrator + one per role, each with its own accent
     //    color and the engine/model the reviewed plan assigned.
-    const orch = newSession(projectRoot);
+    const orch = newSession(projectRoot, projectRoot);
     orch.roleLabel = "Orchestrator";
     orch.color = autoColor(0);
     orch.orchestrationGrant = grant;
@@ -413,7 +482,7 @@ export const useAgent = create<AppState>((set, get) => ({
     const rolePanels: string[] = [];
     const folderToPanel: Record<string, string> = {};
     roleData.forEach((r, i) => {
-      const s = newSession(r.folder);
+      const s = newSession(r.folder, projectRoot);
       s.roleLabel = r.role;
       s.color = autoColor(i + 1);
       s.provider = r.provider;
@@ -427,12 +496,17 @@ export const useAgent = create<AppState>((set, get) => ({
       rolePanels.push(s.id);
       folderToPanel[r.folder.split("/").pop() || r.folder] = s.id;
     });
-    set({
-      sessions,
-      panels,
-      activePanel: orch.id,
-      orch: { ...IDLE_ORCH, active: true, phase: "working", orchestratorPanel: orch.id, rolePanels, round: 1, projectName, projectRoot },
-    });
+    {
+      const cur = get();
+      set({
+        sessions: { ...cur.sessions, ...sessions },
+        panels: [...cur.panels, ...panels],
+        activePanel: orch.id,
+        openProjects: [...cur.openProjects.filter((p) => p !== projectRoot), projectRoot],
+        activeProject: projectRoot,
+        orch: { ...IDLE_ORCH, active: true, phase: "working", orchestratorPanel: orch.id, rolePanels, round: 1, projectName, projectRoot },
+      });
+    }
     pushAssistant(orch.id, `Project "${projectName}" created.\n\n${brief}\n\nDispatching ${roleData.length} agents…`);
 
     // 3) Round loop: roles work → orchestrator reviews → done or dispatch fixes.
@@ -472,8 +546,10 @@ export const useAgent = create<AppState>((set, get) => ({
   },
 
   setCwd: (id, cwd) => {
-    updateSession(id, (s) => ({ ...s, cwd }));
-    const { settings, token } = get();
+    updateSession(id, (s) => ({ ...s, cwd, project: cwd }));
+    const { settings, token, openProjects } = get();
+    if (cwd && !openProjects.includes(cwd)) set({ openProjects: [...openProjects, cwd] });
+    if (cwd) set({ activeProject: cwd });
     void persist({ ...settings, cwd }, token);
     scheduleSaveWorkspace();
   },
@@ -507,6 +583,7 @@ export const useAgent = create<AppState>((set, get) => ({
     updateSession(id, (s) => ({
       ...s,
       cwd: projectPath,
+      project: projectPath,
       items: [],
       sessionId: null,
       turnId: null,
@@ -514,6 +591,9 @@ export const useAgent = create<AppState>((set, get) => ({
       roleLabel: undefined,
       orchestrationGrant: undefined,
     }));
+    const { openProjects } = get();
+    if (!openProjects.includes(projectPath)) set({ openProjects: [...openProjects, projectPath] });
+    set({ activeProject: projectPath, activePanel: id });
     touchProjectApi(projectPath, get().token);
     scheduleSaveWorkspace();
   },
@@ -522,6 +602,7 @@ export const useAgent = create<AppState>((set, get) => ({
     updateSession(id, (s) => ({
       ...s,
       cwd: projectPath,
+      project: projectPath,
       items: [],
       sessionId,
       turnId: null,
@@ -529,6 +610,9 @@ export const useAgent = create<AppState>((set, get) => ({
       roleLabel: undefined,
       orchestrationGrant: undefined,
     }));
+    const { openProjects } = get();
+    if (!openProjects.includes(projectPath)) set({ openProjects: [...openProjects, projectPath] });
+    set({ activeProject: projectPath, activePanel: id });
     touchProjectApi(projectPath, get().token);
     scheduleSaveWorkspace();
     const token = get().token;
@@ -549,13 +633,23 @@ export const useAgent = create<AppState>((set, get) => ({
       fetch("/api/workspace").then((r) => r.json()).catch(() => ({ panels: [] })),
       fetch("/api/projects").then((r) => r.json()).catch(() => ({ projects: [] })),
     ]);
-    const existing = new Set<string>((pj.projects ?? []).map((p: { path: string }) => p.path));
-    const wpanels = (w.panels ?? []).filter((p: { projectPath: string }) => existing.has(p.projectPath)).slice(0, MAX_PANELS);
+    const roots: string[] = (pj.projects ?? []).map((p: { path: string }) => p.path);
+    const existing = new Set<string>(roots);
+    // A panel belongs to a registered project root (its cwd may be a subfolder).
+    const projectOf = (p: { projectPath: string; project?: string }): string =>
+      p.project && existing.has(p.project)
+        ? p.project
+        : existing.has(p.projectPath)
+          ? p.projectPath
+          : (roots.find((r) => p.projectPath.startsWith(r + "/")) ?? "");
+    const wpanels = (w.panels ?? []).filter((p: { projectPath: string; project?: string }) => projectOf(p));
     if (wpanels.length) {
       const sessions: Record<string, Session> = {};
       const panels: string[] = [];
+      const derived: string[] = [];
       for (const p of wpanels) {
-        const s = newSession(p.projectPath);
+        const proj = projectOf(p);
+        const s = newSession(p.projectPath, proj);
         s.provider = p.provider;
         s.color = p.color;
         s.selModel = p.selModel ?? null;
@@ -564,16 +658,30 @@ export const useAgent = create<AppState>((set, get) => ({
         s.sessionId = p.sessionId ?? null;
         sessions[s.id] = s;
         panels.push(s.id);
+        if (!derived.includes(proj)) derived.push(proj);
       }
+      const savedOpen: string[] = Array.isArray(w.openProjects) ? w.openProjects.filter((p: string) => existing.has(p)) : [];
+      const openProjects = [...savedOpen, ...derived.filter((p) => !savedOpen.includes(p))];
+      const activeProject =
+        typeof w.activeProject === "string" && openProjects.includes(w.activeProject) ? w.activeProject : openProjects[0];
+      const mine = panels.filter((p) => sessions[p].project === activeProject);
       const ai = Math.min(Math.max(0, w.activeIndex ?? 0), panels.length - 1);
-      set({ sessions, panels, activePanel: panels[ai] });
+      const activePanel = mine.includes(panels[ai]) ? panels[ai] : mine[0];
+      set({
+        sessions,
+        panels,
+        activePanel,
+        openProjects,
+        activeProject,
+        viewMode: w.viewMode === "tabs" ? "tabs" : "split",
+      });
       wpanels.forEach((p: { sessionId?: string | null }, i: number) => {
         if (p.sessionId) loadItemsInto(panels[i], p.sessionId, token);
       });
-    } else if ((pj.projects ?? []).length) {
-      const s = newSession(pj.projects[0].path);
-      set({ sessions: { [s.id]: s }, panels: [s.id], activePanel: s.id });
-      touchProjectApi(pj.projects[0].path, token);
+    } else if (roots.length) {
+      const s = newSession(roots[0]);
+      set({ sessions: { [s.id]: s }, panels: [s.id], activePanel: s.id, openProjects: [roots[0]], activeProject: roots[0] });
+      touchProjectApi(roots[0], token);
     } else {
       const s = newSession("");
       set({ sessions: { [s.id]: s }, panels: [s.id], activePanel: s.id });
@@ -718,6 +826,7 @@ function scheduleSaveWorkspace() {
         const s = st.sessions[id];
         return {
           projectPath: s?.cwd || "",
+          project: s?.project,
           provider: s?.provider,
           color: s?.color,
           selModel: s?.selModel ?? null,
@@ -731,7 +840,13 @@ function scheduleSaveWorkspace() {
     void fetch("/api/workspace", {
       method: "PUT",
       headers: authHeaders(st.token),
-      body: JSON.stringify({ panels, activeIndex }),
+      body: JSON.stringify({
+        panels,
+        activeIndex,
+        openProjects: st.openProjects,
+        activeProject: st.activeProject,
+        viewMode: st.viewMode,
+      }),
     }).catch(() => {});
   }, 800);
 }

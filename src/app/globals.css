@@ -631,6 +631,101 @@ button {
   line-height: 1;
 }
 
+/* Pinned projects (sidebar) */
+.pinned-projects {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--line);
+}
+.pin-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+.pin-row:hover {
+  background: var(--panel);
+}
+.pin-row.active {
+  background: var(--panel);
+  color: var(--ink);
+  font-weight: 600;
+}
+.pin-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pin-close {
+  opacity: 0.4;
+  padding: 0 3px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+.pin-row:hover .pin-close {
+  opacity: 1;
+}
+.pin-close:hover {
+  background: var(--line);
+}
+
+/* Tabs view for sessions */
+.panels-tabs {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+.panels-tabbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 8px 0;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  overflow-x: auto;
+}
+.panel-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid transparent;
+  border-top-width: 2px;
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.panel-tab.active {
+  background: var(--bg);
+  border-color: var(--line);
+  border-top-color: var(--brand);
+  color: var(--ink);
+  font-weight: 600;
+}
+.tab-color {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.panels-tabs .panels-grid {
+  flex: 1;
+  min-height: 0;
+}
+
 /* Editor chrome */
 .code-editor {
   display: flex;

@@ -7,7 +7,7 @@ import { PanelsGrid } from "@/components/PanelsGrid";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import { AnalyticsPanel } from "@/components/AnalyticsPanel";
 import { SkillsPanel } from "@/components/SkillsPanel";
-import { ProjectsPanel } from "@/components/ProjectsPanel";
+import { ProjectsPanel, PIN_PICKER } from "@/components/ProjectsPanel";
 import { OrchestratorModal } from "@/components/OrchestratorModal";
 import { OrchestrationBanner } from "@/components/OrchestrationBanner";
 import { useAgent } from "@/store/agent";
@@ -37,7 +37,7 @@ export default function Home() {
 
   const onAddPanel = () => {
     const st = useAgent.getState();
-    addPanel(st.sessions[st.activePanel]?.cwd || "");
+    addPanel(st.activeProject || st.sessions[st.activePanel]?.cwd || "");
   };
 
   return (
@@ -48,7 +48,7 @@ export default function Home() {
           <Sidebar
             onAddPanel={onAddPanel}
             onOrchestrate={() => setOrchestrateOpen(true)}
-            onProjects={() => setProjectsFor(useAgent.getState().activePanel)}
+            onProjects={() => setProjectsFor(PIN_PICKER)}
             onAnalytics={() => setAnalyticsOpen(true)}
             onSkills={() => setSkillsFor(useAgent.getState().activePanel)}
           />

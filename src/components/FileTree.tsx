@@ -30,7 +30,8 @@ interface Tab {
 type MenuKind = "newFile" | "newFolder" | "rename";
 
 export function FileTree() {
-  const cwd = useAgent((s) => s.sessions[s.activePanel]?.cwd ?? "");
+  // The tree follows the active pinned project (panel cwds may be subfolders).
+  const cwd = useAgent((s) => s.activeProject || s.sessions[s.activePanel]?.cwd || "");
   const token = useAgent((s) => s.token);
   const running = useAgent((s) => s.sessions[s.activePanel]?.running ?? false);
   const t = useT();
