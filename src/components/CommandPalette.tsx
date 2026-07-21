@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useAgent } from "@/store/agent";
 import { useT } from "@/i18n";
 import { apiListCommands, type CommandInfo } from "@/lib/commands-client";
+import { Icon } from "@/components/icons";
 
 export function CommandPalette({
   panelId,
@@ -74,7 +75,7 @@ export function CommandPalette({
             }}
           />
           <button className="icon-btn" onClick={onClose} aria-label="close">
-            ✕
+            <Icon name="x" size={14} />
           </button>
         </div>
         <div className="cmd-hint">{t("commandsHint")}</div>

@@ -5,6 +5,7 @@ import { useAgent } from "@/store/agent";
 import { useT, useLang } from "@/i18n";
 import { apiReadFile } from "@/lib/fs-client";
 import { clearCommandsCache } from "@/lib/commands-client";
+import { Icon } from "@/components/icons";
 
 interface SkillInfo {
   name: string;
@@ -157,9 +158,9 @@ export function SkillsPanel({ panelId, onClose }: { panelId: string; onClose: ()
     <div className="modal-backdrop" role="dialog" aria-modal="true">
       <div className="settings-modal">
         <div className="settings-head">
-          <h2>✨ {t("skillsTitle")}</h2>
+          <h2><Icon name="sparkles" size={16} /> {t("skillsTitle")}</h2>
           <button className="icon-btn" onClick={onClose} aria-label={t("close")}>
-            ✕
+            <Icon name="x" size={14} />
           </button>
         </div>
 
@@ -214,7 +215,7 @@ export function SkillsPanel({ panelId, onClose }: { panelId: string; onClose: ()
               ) : (
                 <div className="row-actions">
                   <button className="btn btn-ghost" onClick={() => setConfirmDel(true)}>
-                    🗑 {t("deleteAction")}
+                    <Icon name="trash" size={13} /> {t("deleteAction")}
                   </button>
                 </div>
               )}
@@ -275,7 +276,7 @@ export function SkillsPanel({ panelId, onClose }: { panelId: string; onClose: ()
                 </div>
               )}
               <button className="btn btn-primary full-btn" disabled={!cwd} onClick={() => setCreating(true)}>
-                ＋ {t("skillsNew")}
+                <Icon name="plus" size={13} /> {t("skillsNew")}
               </button>
             </>
           )}

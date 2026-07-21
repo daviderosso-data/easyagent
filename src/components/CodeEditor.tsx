@@ -12,6 +12,7 @@ import { json } from "@codemirror/lang-json";
 import { css } from "@codemirror/lang-css";
 import { html } from "@codemirror/lang-html";
 import { markdown } from "@codemirror/lang-markdown";
+import { Icon } from "@/components/icons";
 
 /** Pick a CodeMirror language extension from a filename. Unknown types render
  *  as plain text (still editable, no highlighting). */
@@ -125,22 +126,22 @@ export function CodeEditor({
         {!readOnly && (
           <>
             <button className="icon-btn icon-btn-sm" title={`${t("undoTip")} (⌘Z)`} onClick={() => act(undo)}>
-              ↶
+              <Icon name="undo" size={15} />
             </button>
             <button className="icon-btn icon-btn-sm" title={`${t("redoTip")} (⇧⌘Z)`} onClick={() => act(redo)}>
-              ↷
+              <Icon name="redo" size={15} />
             </button>
           </>
         )}
         <button className="icon-btn icon-btn-sm" title={`${t("findTip")} (⌘F)`} onClick={() => act(openSearchPanel)}>
-          🔍
+          <Icon name="search" size={14} />
         </button>
         <button
           className={`icon-btn icon-btn-sm ${wrap ? "toolbar-on" : ""}`}
           title={t("wrapTip")}
           onClick={() => setWrap((w) => !w)}
         >
-          ⤶
+          <Icon name="wrap" size={15} />
         </button>
       </div>
       <CodeMirror

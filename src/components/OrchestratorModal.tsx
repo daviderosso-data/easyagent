@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useAgent } from "@/store/agent";
 import { useT } from "@/i18n";
+import { Icon } from "@/components/icons";
 
 interface PlanRole {
   role: string;
@@ -91,10 +92,10 @@ export function OrchestratorModal({ onClose }: { onClose: () => void }) {
       <div className="settings-modal">
         <div className="settings-head">
           <h2>
-            🧩 {t("orchestrateTitle")} <span className="orch-badge-exp">{t("experimental")}</span>
+            <Icon name="network" size={16} /> {t("orchestrateTitle")} <span className="orch-badge-exp">{t("experimental")}</span>
           </h2>
           <button className="icon-btn" onClick={onClose} aria-label={t("close")}>
-            ✕
+            <Icon name="x" size={14} />
           </button>
         </div>
         <div className="settings-body">
@@ -116,7 +117,7 @@ export function OrchestratorModal({ onClose }: { onClose: () => void }) {
                   {t("close")}
                 </button>
                 <button className="btn btn-primary" disabled={!goal.trim() || busy} onClick={() => void fetchPlan()}>
-                  {busy ? t("orchPlanning") : `📝 ${t("orchPlanBtn")}`}
+                  {busy ? t("orchPlanning") : <><Icon name="note" size={13} /> {t("orchPlanBtn")}</>}
                 </button>
               </div>
             </>
@@ -136,7 +137,7 @@ export function OrchestratorModal({ onClose }: { onClose: () => void }) {
 
               {plan.questions.length > 0 && (
                 <>
-                  <h3>❓ {t("orchQuestionsTitle")}</h3>
+                  <h3><Icon name="question" size={14} /> {t("orchQuestionsTitle")}</h3>
                   {plan.questions.map((q, i) => (
                     <label className="orch-question" key={i}>
                       <span>{q}</span>
@@ -151,7 +152,7 @@ export function OrchestratorModal({ onClose }: { onClose: () => void }) {
                 </>
               )}
 
-              <h3>➕ {t("orchExtraTitle")}</h3>
+              <h3><Icon name="plus" size={14} /> {t("orchExtraTitle")}</h3>
               <textarea
                 className="field-input"
                 rows={2}
@@ -160,7 +161,7 @@ export function OrchestratorModal({ onClose }: { onClose: () => void }) {
                 onChange={(e) => setExtra(e.target.value)}
               />
 
-              <h3>🤖 {t("orchRolesTitle")}</h3>
+              <h3><Icon name="robot" size={14} /> {t("orchRolesTitle")}</h3>
               {plan.roles.map((r, i) => {
                 const engine = engines.find((e) => e.id === r.provider) ?? engines[0];
                 return (
@@ -205,7 +206,7 @@ export function OrchestratorModal({ onClose }: { onClose: () => void }) {
                   ← {t("orchBack")}
                 </button>
                 <button className="btn btn-soft" onClick={refine} disabled={busy}>
-                  {busy ? t("orchPlanning") : `↻ ${t("orchUpdatePlan")}`}
+                  {busy ? t("orchPlanning") : <><Icon name="refresh" size={13} /> {t("orchUpdatePlan")}</>}
                 </button>
                 <button className="btn btn-primary" onClick={launch} disabled={busy}>
                   ▸ {t("startOrchestration")}

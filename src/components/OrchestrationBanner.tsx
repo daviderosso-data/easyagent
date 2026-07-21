@@ -2,6 +2,7 @@
 
 import { useAgent } from "@/store/agent";
 import { useT } from "@/i18n";
+import { Icon } from "@/components/icons";
 
 export function OrchestrationBanner() {
   const orch = useAgent((s) => s.orch);
@@ -32,24 +33,24 @@ export function OrchestrationBanner() {
       <div className="orch-banner-row">
         {busy && <span className="orch-spinner">◐</span>}
         <span className="orch-banner-title">
-          🧩 {orch.projectName || t("orchestrate")} — {phaseText}
+          <Icon name="network" size={14} /> {orch.projectName || t("orchestrate")} — {phaseText}
           {busy && orch.round > 1 ? ` · round ${orch.round}` : ""}
         </span>
         <span className="orch-badge-exp">{t("experimental")}</span>
         {busy && (
           <button className="btn btn-stop btn-stop-sm orch-stop" onClick={stopOrch}>
-            ◼ {t("orchStop")}
+            <Icon name="stop" size={12} /> {t("orchStop")}
           </button>
         )}
         {closable && (
           <button className="icon-btn icon-btn-sm orch-close" onClick={dismiss} aria-label={t("close")}>
-            ✕
+            <Icon name="x" size={13} />
           </button>
         )}
       </div>
       {orch.phase === "done" && orch.runInstructions && (
         <details className="orch-run" open>
-          <summary>▶ {t("howToRun")}</summary>
+          <summary><Icon name="chevronRight" size={11} /> {t("howToRun")}</summary>
           <pre>{orch.runInstructions}</pre>
         </details>
       )}

@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { useAgent, type Item } from "@/store/agent";
 import { DiffView } from "@/components/DiffView";
 import { useT, useLang, labelTool } from "@/i18n";
+import { LogoMark } from "@/components/icons";
 
 const EDIT_TOOLS = new Set(["Edit", "MultiEdit", "Write"]);
 const EMPTY: Item[] = [];
@@ -21,7 +22,7 @@ export function Transcript({ id }: { id: string }) {
   if (items.length === 0) {
     return (
       <div className="empty">
-        <div className="empty-emoji">👋</div>
+        <div className="empty-emoji"><LogoMark size={40} /></div>
         <h2>{t("emptyTitle")}</h2>
         <p>{t("emptyBody")}</p>
         <p className="empty-hint">{t("emptyHint")}</p>

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useAgent } from "@/store/agent";
 import { useT } from "@/i18n";
 import type { MsgKey } from "@/i18n/messages";
+import { Icon } from "@/components/icons";
 
 interface ConnEntry {
   id: string;
@@ -221,7 +222,7 @@ export function ConnectionsSection() {
 
   return (
     <section className="settings-section">
-      <h3>🔌 {t("secConnections")}</h3>
+      <h3><Icon name="plug" size={15} /> {t("secConnections")}</h3>
       <p className="settings-sub">{t("connIntro")}</p>
       {locked && <p className="conn-locked-note">{t("connLockedNote")}</p>}
 
@@ -242,7 +243,7 @@ export function ConnectionsSection() {
               {testing === e.id ? t("connTesting") : t("connTest")}
             </button>
             <button className="icon-btn icon-btn-sm" aria-label={t("connDeleteConfirm")} onClick={() => setConfirmDel(e.id)}>
-              🗑
+              <Icon name="trash" size={14} />
             </button>
           </div>
           {testResult?.id === e.id && (
@@ -281,7 +282,7 @@ export function ConnectionsSection() {
             >
               {added ? "✓ " : "+ "}
               {p.name}
-              {p.requiresToken ? " 🔑" : ""}
+              {p.requiresToken ? <Icon name="key" size={12} /> : null}
             </button>
           );
         })}
@@ -310,7 +311,7 @@ export function ConnectionsSection() {
           onKeyDown={(e) => e.key === "Enter" && void searchMarket()}
         />
         <button className="btn btn-soft btn-sm" disabled={mktBusy || mq.trim().length < 2} onClick={() => void searchMarket()}>
-          {mktBusy ? "…" : "🔍"}
+          {mktBusy ? "…" : <Icon name="search" size={14} />}
         </button>
       </div>
       {mktBusy && <p className="settings-sub">{t("connMarketSlow")}</p>}
@@ -329,7 +330,7 @@ export function ConnectionsSection() {
                   disabled={already || adding !== null}
                   onClick={() => void addFromMarket(h)}
                 >
-                  {already ? "✓" : adding === h.name ? "…" : `${t("connAdd")}${needsSetup(h) ? " 🔑" : ""}`}
+                  {already ? <Icon name="check" size={13} /> : adding === h.name ? "…" : <>{t("connAdd")} {needsSetup(h) && <Icon name="key" size={12} />}</>}
                 </button>
               </div>
             );
@@ -385,7 +386,7 @@ export function ConnectionsSection() {
               <input className="field-input" type={SECRETISH.test(row.k) ? "password" : "text"} value={row.v} placeholder={t("connValuePh")} spellCheck={false}
                 onChange={(e) => setFKv((rows) => rows.map((r, j) => (j === i ? { ...r, v: e.target.value } : r)))} />
               <button className="icon-btn icon-btn-sm" onClick={() => setFKv((rows) => rows.filter((_, j) => j !== i))}>
-                ✕
+                <Icon name="x" size={13} />
               </button>
             </div>
           ))}

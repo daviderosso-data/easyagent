@@ -4,6 +4,7 @@ import { useAgent } from "@/store/agent";
 import { detectProfile } from "@/lib/settings";
 import { useT } from "@/i18n";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { Icon, LogoMark } from "@/components/icons";
 
 const PROFILE_KEY = {
   locked: "profileLocked",
@@ -27,14 +28,14 @@ export function AppShell({ onOpenSettings, children }: { onOpenSettings: () => v
     <div className="shell">
       <header className="topbar">
         <div className="brand">
-          <span className="brand-mark">◆</span>
+          <LogoMark />
           <span className="brand-name">{t("brand")}</span>
         </div>
 
         <div className="topbar-controls">
           {/* Passive status indicator (Settings is the ⚙️ button — no redundancy). */}
           <div className={`shield ${shieldOk ? "shield-ok" : "shield-warn"}`} title={t("secSecurity")}>
-            <span>🛡️</span>
+            <Icon name="shield" size={13} />
             <span>{t(PROFILE_KEY[profile])}</span>
           </div>
 
@@ -49,13 +50,13 @@ export function AppShell({ onOpenSettings, children }: { onOpenSettings: () => v
             title={viewMode === "split" ? t("viewTabsTip") : t("viewSplitTip")}
             aria-label={viewMode === "split" ? t("viewTabsTip") : t("viewSplitTip")}
           >
-            {viewMode === "split" ? "🗂" : "▦"}
+            <Icon name={viewMode === "split" ? "tabs" : "split"} size={15} />
           </button>
 
           <ThemeToggle />
 
           <button className="icon-btn" onClick={onOpenSettings} title={t("settings")} aria-label={t("settings")}>
-            ⚙️
+            <Icon name="gear" size={15} />
           </button>
         </div>
       </header>
