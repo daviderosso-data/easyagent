@@ -14,6 +14,7 @@ const Schema = z.object({
       z.object({
         projectPath: z.string(),
         provider: z.string().optional(),
+        color: z.string().max(20).optional(),
         selModel: z.string().nullable().optional(),
         effort: z.string().optional(),
         sessionId: z.string().nullable().optional(),

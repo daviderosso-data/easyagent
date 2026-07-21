@@ -3,33 +3,71 @@ import { buildAgentEnv } from "@/server/security";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-export interface RolePlan {
+export interface PlannedRole {
   role: string;
   folder: string;
   task: string;
+  /** Engine assigned to this role (validated against the available list). */
+  provider: string;
+  /** Model id within that engine (null = engine default). */
+  model: string | null;
 }
+
 export interface OrchestratorPlan {
   ok: boolean;
   projectName?: string;
   brief?: string;
-  roles?: RolePlan[];
+  /** Short, specific structure questions for the user to confirm before launch. */
+  questions?: string[];
+  roles?: PlannedRole[];
   error?: string;
 }
 
-const INSTRUCTIONS = `You are the ORCHESTRATOR of a new software project. The user gives a goal.
-Design the project from scratch and split the work into 2 to 3 specialized roles that fit THIS goal —
-for example Backend, Frontend, Design, Copy, but choose whatever actually fits (a CLI tool or a data
-script may need different roles).
+/** One available engine as offered to the planner. */
+export interface EngineOption {
+  id: string;
+  label: string;
+  models: (string | null)[];
+  local: boolean;
+}
 
-Choose a short PROJECT NAME (a few words). Produce a SHARED BRIEF: the common decisions every role MUST
-follow to stay consistent — tech stack, data/API contracts, file/naming conventions, how the pieces fit
-together, and visual/tone guidelines. For each role, choose a short lowercase folder name
-(letters/dashes, no spaces) where that role will work, and a concrete, self-contained task.
+function engineCatalogue(engines: EngineOption[]): string {
+  return engines
+    .map(
+      (e) =>
+        `- provider "${e.id}" (${e.label}${e.local ? " — runs locally, free, weaker" : ""}): models ${e.models
+          .map((m) => m ?? "default")
+          .join(", ")}`,
+    )
+    .join("\n");
+}
 
-Output ONLY a single JSON object — no explanation, no markdown code fences — exactly in this shape:
-{"projectName":"<short name>","brief":"<shared context every role must follow>","roles":[{"role":"Backend","folder":"server","task":"<what to build>"},{"role":"Frontend","folder":"web","task":"<what to build>"}]}`;
+function planInstructions(engines: EngineOption[]): string {
+  return `You are the ORCHESTRATOR of a new software project. The user gives a goal.
+Design the project and split the work into 2 to 3 specialized roles that fit THIS goal (Backend, Frontend,
+Design, Copy, or whatever actually fits). Choose a short PROJECT NAME and a SHARED BRIEF: the common
+decisions every role MUST follow (tech stack, data/API contracts, file/naming conventions, how pieces fit,
+visual/tone guidelines). For each role choose a short lowercase folder name (letters/dashes) and a concrete,
+self-contained task.
 
-function extractJson(text: string): any | null {
+ENGINES AND MODELS available on this machine (the ONLY ones you may assign):
+${engineCatalogue(engines)}
+
+Assign each role the LIGHTEST engine+model that is adequate for its difficulty — this saves tokens and keeps
+the machine responsive. Reserve the most capable model for the single hardest role; simple self-contained
+work (copy, static pages, config) suits smaller or local models. Use "default" (null model) unless a
+specific model is clearly better.
+
+Also write up to 4 SHORT, specific QUESTIONS about structural choices that are genuinely ambiguous in the
+goal (stack, data shape, pages, integrations, target platform). No filler questions. If the goal is fully
+clear, return an empty questions array.
+
+Output ONLY a single JSON object — no explanation, no markdown fences — exactly in this shape:
+{"projectName":"<short name>","brief":"<shared context>","questions":["<q1>","<q2>"],
+"roles":[{"role":"Backend","folder":"server","task":"<what to build>","provider":"claude","model":null}]}`;
+}
+
+export function extractJson(text: string): any | null {
   const start = text.indexOf("{");
   const end = text.lastIndexOf("}");
   if (start < 0 || end <= start) return null;
@@ -40,39 +78,70 @@ function extractJson(text: string): any | null {
   }
 }
 
-export async function runOrchestrator(goal: string, cwd: string): Promise<OrchestratorPlan> {
+/** Validate the model's JSON against the offered engines (pure — unit-tested).
+ *  Unknown providers fall back to the first engine; unknown models to default. */
+export function parsePlan(text: string, engines: EngineOption[]): OrchestratorPlan {
+  const parsed = extractJson(text);
+  if (!parsed || !Array.isArray(parsed.roles)) return { ok: false, error: "Could not produce a plan." };
+  const byId = new Map(engines.map((e) => [e.id, e]));
+  const fallback = engines[0]?.id ?? "claude";
+  const roles: PlannedRole[] = parsed.roles
+    .filter((r: any) => r && r.role && r.folder && r.task)
+    .slice(0, 3)
+    .map((r: any) => {
+      const provider = byId.has(String(r.provider)) ? String(r.provider) : fallback;
+      const engine = byId.get(provider)!;
+      const model =
+        typeof r.model === "string" && engine.models.includes(r.model) ? r.model : null;
+      return { role: String(r.role), folder: String(r.folder), task: String(r.task), provider, model };
+    });
+  if (roles.length < 1) return { ok: false, error: "No roles in the plan." };
+  const questions = Array.isArray(parsed.questions)
+    ? parsed.questions.filter((q: any) => typeof q === "string" && q.trim()).slice(0, 4)
+    : [];
+  return {
+    ok: true,
+    projectName: String(parsed.projectName ?? "project"),
+    brief: String(parsed.brief ?? ""),
+    questions,
+    roles,
+  };
+}
+
+/** Plan-mode run: produce brief + roles + engine/model assignments + questions.
+ *  No project is created here — the user reviews and confirms first. */
+export async function planOrchestration(
+  goal: string,
+  answers: string | undefined,
+  engines: EngineOption[],
+  cwd: string,
+): Promise<OrchestratorPlan> {
   let resultText = "";
+  const prompt =
+    `Goal: ${goal}\n\n` +
+    (answers
+      ? `The user answered your earlier structure questions:\n${answers}\n\n` +
+        `Refine the plan accordingly. Only ask NEW questions if something essential is still ambiguous.\n\n`
+      : "") +
+    "Output the JSON plan (and nothing else).";
   try {
     const q = query({
-      prompt: `Goal: ${goal}\n\nAnalyze the project, then output the JSON plan (and nothing else).`,
+      prompt,
       options: {
         cwd,
-        allowedTools: ["Read", "Glob", "Grep", "LS"],
-        permissionMode: "dontAsk", // read-only, never prompts
+        allowedTools: [],
+        permissionMode: "dontAsk",
+        maxTurns: 4,
         settingSources: [],
-        systemPrompt: { type: "preset", preset: "claude_code", append: INSTRUCTIONS },
+        systemPrompt: { type: "preset", preset: "claude_code", append: planInstructions(engines) },
         env: buildAgentEnv(),
-        maxTurns: 12,
       } as any,
     });
     for await (const m of q as AsyncIterable<any>) {
       if (m.type === "result") resultText = m.result ?? "";
     }
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "orchestrator failed" };
+    return { ok: false, error: e instanceof Error ? e.message : "planner failed" };
   }
-
-  const parsed = extractJson(resultText);
-  if (!parsed || !Array.isArray(parsed.roles)) return { ok: false, error: "Could not produce a plan." };
-  const roles: RolePlan[] = parsed.roles
-    .filter((r: any) => r && r.role && r.folder && r.task)
-    .slice(0, 3)
-    .map((r: any) => ({ role: String(r.role), folder: String(r.folder), task: String(r.task) }));
-  if (roles.length < 1) return { ok: false, error: "No roles in the plan." };
-  return {
-    ok: true,
-    projectName: String(parsed.projectName ?? "project"),
-    brief: String(parsed.brief ?? ""),
-    roles,
-  };
+  return parsePlan(resultText, engines);
 }

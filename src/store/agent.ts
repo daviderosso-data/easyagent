@@ -5,6 +5,7 @@ import type { AgentEvent } from "@/lib/agent-events";
 import type { AppSettings, Lang, Theme, SecurityConfig } from "@/lib/settings";
 import type { Effort } from "@/lib/models";
 import type { ProviderInfo } from "@/lib/providers-client";
+import { autoColor } from "@/lib/panel-colors";
 import { DEFAULT_SETTINGS, PROFILES, detectProfile } from "@/lib/settings";
 import { streamAgent } from "@/lib/sse-client";
 import { clearCommandsCache } from "@/lib/commands-client";
@@ -58,6 +59,8 @@ export interface Session {
   orchestrationGrant?: string;
   /** Engine running this chat (undefined = default, Claude). */
   provider?: string;
+  /** Accent color id (lib/panel-colors) so parallel sessions are telling apart. */
+  color?: string;
   /** Per-chat model override (null/undefined = default). */
   selModel?: string | null;
   /** Per-chat reasoning effort (undefined = default). */
@@ -118,6 +121,13 @@ export interface RoleSpec {
   task: string;
 }
 
+/** A reviewed plan the user confirmed in the orchestrator modal. */
+export interface OrchPlanInput {
+  projectName: string;
+  brief: string;
+  roles: { role: string; folder: string; task: string; provider?: string; model?: string | null }[];
+}
+
 export const MAX_PANELS = 10;
 
 interface AppState {
@@ -145,11 +155,12 @@ interface AppState {
   addPanel: (cwd: string) => void;
   removePanel: (id: string) => void;
   setActivePanel: (id: string) => void;
-  runOrchestration: (goal: string) => Promise<void>;
+  runOrchestration: (goal: string, plan: OrchPlanInput) => Promise<void>;
   stopOrchestration: () => void;
   dismissOrchestration: () => void;
 
   setCwd: (id: string, cwd: string) => void;
+  setPanelColor: (id: string, color: string | undefined) => void;
   setProvider: (id: string, provider: string) => void;
   setModel: (id: string, model: string | null) => void;
   setEffort: (id: string, effort: Effort | undefined) => void;
@@ -348,7 +359,7 @@ export const useAgent = create<AppState>((set, get) => ({
     set((s) => ({ orch: { ...s.orch, active: false, cancelRequested: true, phase: "cancelled" } }));
   },
 
-  async runOrchestration(goal) {
+  async runOrchestration(goal, plan) {
     const st0 = get();
     if (st0.orch.active) return;
     // Don't orphan turns already running in existing panels: abort them first,
@@ -368,13 +379,14 @@ export const useAgent = create<AppState>((set, get) => ({
     }
     set({ orch: { ...IDLE_ORCH, active: true, phase: "planning" } });
 
-    // 1) Plan — server creates a NEW project + role subfolders + plan files.
+    // 1) Launch the reviewed plan — server creates the project + role
+    //    subfolders + plan files (the model call already happened in /plan).
     let res: any;
     try {
       res = await fetch("/api/orchestrate", {
         method: "POST",
         headers: authHeaders(st0.token),
-        body: JSON.stringify({ goal, lang: st0.lang }),
+        body: JSON.stringify({ goal, plan }),
       }).then((r) => r.json());
     } catch {
       res = { ok: false, error: "network error" };
@@ -385,11 +397,13 @@ export const useAgent = create<AppState>((set, get) => ({
     }
     const { projectRoot, projectName, brief } = res;
     const grant: string | undefined = typeof res.grant === "string" ? res.grant : undefined;
-    const roleData: { role: string; folder: string; task: string }[] = res.roles;
+    const roleData: { role: string; folder: string; task: string; provider?: string; model?: string | null }[] = res.roles;
 
-    // 2) Build panels: orchestrator + one per role.
+    // 2) Build panels: orchestrator + one per role, each with its own accent
+    //    color and the engine/model the reviewed plan assigned.
     const orch = newSession(projectRoot);
     orch.roleLabel = "Orchestrator";
+    orch.color = autoColor(0);
     orch.orchestrationGrant = grant;
     orch.systemAppend =
       `You are the ORCHESTRATOR of the project "${projectName}". Specialist agents each work in a ` +
@@ -398,9 +412,12 @@ export const useAgent = create<AppState>((set, get) => ({
     const panels: string[] = [orch.id];
     const rolePanels: string[] = [];
     const folderToPanel: Record<string, string> = {};
-    roleData.forEach((r) => {
+    roleData.forEach((r, i) => {
       const s = newSession(r.folder);
       s.roleLabel = r.role;
+      s.color = autoColor(i + 1);
+      s.provider = r.provider;
+      s.selModel = r.model ?? null;
       s.orchestrationGrant = grant;
       s.systemAppend =
         `You are the "${r.role}" specialist on the project "${projectName}", coordinated by an ` +
@@ -458,6 +475,11 @@ export const useAgent = create<AppState>((set, get) => ({
     updateSession(id, (s) => ({ ...s, cwd }));
     const { settings, token } = get();
     void persist({ ...settings, cwd }, token);
+    scheduleSaveWorkspace();
+  },
+
+  setPanelColor: (id, color) => {
+    updateSession(id, (s) => ({ ...s, color }));
     scheduleSaveWorkspace();
   },
 
@@ -535,6 +557,7 @@ export const useAgent = create<AppState>((set, get) => ({
       for (const p of wpanels) {
         const s = newSession(p.projectPath);
         s.provider = p.provider;
+        s.color = p.color;
         s.selModel = p.selModel ?? null;
         s.effort = p.effort;
         s.roleLabel = p.roleLabel;
@@ -696,6 +719,7 @@ function scheduleSaveWorkspace() {
         return {
           projectPath: s?.cwd || "",
           provider: s?.provider,
+          color: s?.color,
           selModel: s?.selModel ?? null,
           effort: s?.effort,
           sessionId: s?.sessionId ?? null,

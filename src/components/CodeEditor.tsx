@@ -2,7 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import CodeMirror, { EditorView, type Extension } from "@uiw/react-codemirror";
+import { undo, redo } from "@codemirror/commands";
+import { openSearchPanel } from "@codemirror/search";
 import { oneDark } from "@codemirror/theme-one-dark";
+import { useT } from "@/i18n";
 import { javascript } from "@codemirror/lang-javascript";
 import { python } from "@codemirror/lang-python";
 import { json } from "@codemirror/lang-json";
@@ -82,9 +85,12 @@ export function CodeEditor({
   onSave?: () => void;
   readOnly?: boolean;
 }) {
+  const t = useT();
   const dark = useIsDark();
+  const [view, setView] = useState<EditorView | null>(null);
+  const [wrap, setWrap] = useState(true);
   const extensions = useMemo(() => {
-    const exts: Extension[] = [EditorView.lineWrapping];
+    const exts: Extension[] = wrap ? [EditorView.lineWrapping] : [];
     const lang = languageFor(fileName);
     if (lang) exts.push(lang);
     if (onSave) {
@@ -103,18 +109,51 @@ export function CodeEditor({
       );
     }
     return exts;
-  }, [fileName, onSave]);
+  }, [fileName, onSave, wrap]);
+
+  // Toolbar actions act on the live editor view (keyboard shortcuts still work).
+  const act = (fn: (v: EditorView) => unknown) => {
+    if (view) {
+      fn(view);
+      view.focus();
+    }
+  };
 
   return (
-    <CodeMirror
-      value={value}
-      onChange={onChange}
-      readOnly={readOnly}
-      theme={dark ? oneDark : "light"}
-      extensions={extensions}
-      basicSetup={{ lineNumbers: true, highlightActiveLine: !readOnly, foldGutter: true }}
-      height="100%"
-      style={{ height: "100%", fontSize: "13px" }}
-    />
+    <div className="code-editor">
+      <div className="editor-toolbar">
+        {!readOnly && (
+          <>
+            <button className="icon-btn icon-btn-sm" title={`${t("undoTip")} (⌘Z)`} onClick={() => act(undo)}>
+              ↶
+            </button>
+            <button className="icon-btn icon-btn-sm" title={`${t("redoTip")} (⇧⌘Z)`} onClick={() => act(redo)}>
+              ↷
+            </button>
+          </>
+        )}
+        <button className="icon-btn icon-btn-sm" title={`${t("findTip")} (⌘F)`} onClick={() => act(openSearchPanel)}>
+          🔍
+        </button>
+        <button
+          className={`icon-btn icon-btn-sm ${wrap ? "toolbar-on" : ""}`}
+          title={t("wrapTip")}
+          onClick={() => setWrap((w) => !w)}
+        >
+          ⤶
+        </button>
+      </div>
+      <CodeMirror
+        value={value}
+        onChange={onChange}
+        readOnly={readOnly}
+        theme={dark ? oneDark : "light"}
+        extensions={extensions}
+        basicSetup={{ lineNumbers: true, highlightActiveLine: !readOnly, foldGutter: true }}
+        onCreateEditor={(v) => setView(v)}
+        height="100%"
+        style={{ flex: 1, minHeight: 0, fontSize: "13px" }}
+      />
+    </div>
   );
 }

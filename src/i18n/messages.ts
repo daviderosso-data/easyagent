@@ -277,6 +277,24 @@ export const messages = {
     engineTip: "Engine for this chat",
     notInstalled: "not installed",
     thisAction: "This action",
+    panelColorTip: "Panel color",
+
+    // Editor toolbar
+    undoTip: "Undo",
+    redoTip: "Redo",
+    findTip: "Find",
+    wrapTip: "Line wrap",
+
+    // Orchestrator plan mode
+    orchPlanBtn: "Prepare the plan",
+    orchPlanFailed: "Could not prepare the plan. Try again.",
+    orchProjectName: "Project name",
+    orchBriefTitle: "Shared brief",
+    orchQuestionsTitle: "The orchestrator asks",
+    orchAnswerPh: "Your answer (optional)",
+    orchRolesTitle: "Proposed agents",
+    orchUpdatePlan: "Update the plan",
+    orchBack: "Back",
     otherEngines: "Other engines",
     connected: "Signed in",
     optDefault: "Default",
@@ -595,6 +613,24 @@ export const messages = {
     engineTip: "Motore per questa chat",
     notInstalled: "non installato",
     thisAction: "Questa azione",
+    panelColorTip: "Colore del pannello",
+
+    // Editor toolbar
+    undoTip: "Annulla",
+    redoTip: "Ripristina",
+    findTip: "Cerca",
+    wrapTip: "A capo automatico",
+
+    // Orchestrator plan mode
+    orchPlanBtn: "Prepara il piano",
+    orchPlanFailed: "Non sono riuscito a preparare il piano. Riprova.",
+    orchProjectName: "Nome del progetto",
+    orchBriefTitle: "Brief condiviso",
+    orchQuestionsTitle: "L'orchestratore chiede",
+    orchAnswerPh: "La tua risposta (facoltativa)",
+    orchRolesTitle: "Agenti proposti",
+    orchUpdatePlan: "Aggiorna il piano",
+    orchBack: "Indietro",
     otherEngines: "Altri motori",
     connected: "Connesso",
     optDefault: "Predefinito",
