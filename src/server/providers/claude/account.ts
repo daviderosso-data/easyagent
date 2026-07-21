@@ -1,6 +1,7 @@
 import { execFile, spawn } from "node:child_process";
 import { homedir } from "node:os";
 import { promisify } from "node:util";
+import type { AccountStatus } from "@/server/providers/types";
 
 const execFileP = promisify(execFile);
 
@@ -12,13 +13,6 @@ function claudeEnv(): NodeJS.ProcessEnv {
   const extra = `${homedir()}/.local/bin:/opt/homebrew/bin:/usr/local/bin`;
   env.PATH = `${extra}:${env.PATH ?? ""}`;
   return env;
-}
-
-export interface AccountStatus {
-  loggedIn: boolean;
-  email?: string;
-  subscriptionType?: string;
-  authMethod?: string;
 }
 
 export async function accountStatus(): Promise<AccountStatus> {

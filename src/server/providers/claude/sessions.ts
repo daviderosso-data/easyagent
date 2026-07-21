@@ -1,14 +1,8 @@
 import { listSessions, getSessionMessages } from "@anthropic-ai/claude-agent-sdk";
 import { mapSessionMessages } from "@/server/message-map";
+import type { SessionSummary } from "@/server/providers/types";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-
-export interface SessionSummary {
-  sessionId: string;
-  firstPrompt: string;
-  summary: string;
-  lastModified: number;
-}
 
 /** Past Claude Code conversations for a project directory. */
 export async function listProjectSessions(dir: string): Promise<SessionSummary[]> {
