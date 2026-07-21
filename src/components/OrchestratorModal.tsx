@@ -34,6 +34,7 @@ export function OrchestratorModal({ onClose }: { onClose: () => void }) {
   const [plan, setPlan] = useState<Plan | null>(null);
   const [engines, setEngines] = useState<EngineOpt[]>([]);
   const [answers, setAnswers] = useState<string[]>([]);
+  const [extra, setExtra] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -67,11 +68,12 @@ export function OrchestratorModal({ onClose }: { onClose: () => void }) {
 
   const refine = () => {
     if (!plan) return;
-    const qa = plan.questions
+    const parts = plan.questions
       .map((q, i) => (answers[i]?.trim() ? `Q: ${q}\nA: ${answers[i].trim()}` : null))
-      .filter(Boolean)
-      .join("\n\n");
-    void fetchPlan(qa || undefined);
+      .filter(Boolean) as string[];
+    if (extra.trim()) parts.push(`Additional instructions from the user:\n${extra.trim()}`);
+    setExtra("");
+    void fetchPlan(parts.join("\n\n") || undefined);
   };
 
   const updateRole = (i: number, patch: Partial<PlanRole>) => {
@@ -148,6 +150,15 @@ export function OrchestratorModal({ onClose }: { onClose: () => void }) {
                   ))}
                 </>
               )}
+
+              <h3>➕ {t("orchExtraTitle")}</h3>
+              <textarea
+                className="field-input"
+                rows={2}
+                value={extra}
+                placeholder={t("orchExtraPh")}
+                onChange={(e) => setExtra(e.target.value)}
+              />
 
               <h3>🤖 {t("orchRolesTitle")}</h3>
               {plan.roles.map((r, i) => {

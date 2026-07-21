@@ -38,14 +38,14 @@ describe("codexExecArgs", () => {
 });
 
 describe("grokSafetyArgs / grokEffort", () => {
-  it("confined profiles can edit files inside the workspace sandbox", () => {
-    expect(grokSafetyArgs(PROFILES.locked)).toEqual(["--sandbox", "workspace", "--permission-mode", "acceptEdits"]);
-    expect(grokSafetyArgs(PROFILES.standard)).toEqual(["--sandbox", "workspace", "--permission-mode", "acceptEdits"]);
-    expect(grokSafetyArgs(PROFILES.open)).toEqual(["--permission-mode", "bypassPermissions"]);
+  it("always approves (headless can't prompt; verified: anything else cancels tool turns) with the sandbox as guard", () => {
+    expect(grokSafetyArgs(PROFILES.locked)).toEqual(["--sandbox", "workspace", "--always-approve"]);
+    expect(grokSafetyArgs(PROFILES.standard)).toEqual(["--sandbox", "workspace", "--always-approve"]);
+    expect(grokSafetyArgs(PROFILES.open)).toEqual(["--always-approve"]);
   });
 
   it("keeps orchestration turns sandboxed despite behavior=open", () => {
-    expect(grokSafetyArgs(ORCHESTRATION_CONFIG)).toEqual(["--sandbox", "workspace", "--permission-mode", "bypassPermissions"]);
+    expect(grokSafetyArgs(ORCHESTRATION_CONFIG)).toEqual(["--sandbox", "workspace", "--always-approve"]);
   });
 
   it("maps our effort scale onto grok's", () => {
@@ -124,15 +124,22 @@ describe("mapCodexEvent", () => {
 describe("mapGrokEvent", () => {
   const ctx = { turnId: "t1", msgId: "m1", fallbackSessionId: "s0", started: Date.now() };
 
-  it("maps the documented event vocabulary", () => {
-    expect(mapGrokEvent({ type: "text", text: "ciao" }, ctx)[0]).toMatchObject({ type: "text", text: "ciao" });
-    expect(mapGrokEvent({ type: "thought", text: "mm" }, ctx)[0]).toMatchObject({ type: "thinking", text: "mm" });
+  it("maps the live-verified event vocabulary (deltas carry `data`)", () => {
+    expect(mapGrokEvent({ type: "text", data: "CIA" }, ctx)[0]).toMatchObject({ type: "text", text: "CIA" });
+    expect(mapGrokEvent({ type: "thought", data: "mm" }, ctx)[0]).toMatchObject({ type: "thinking", text: "mm" });
+    expect(mapGrokEvent({ type: "text", text: "legacy" }, ctx)[0]).toMatchObject({ type: "text", text: "legacy" });
     expect(mapGrokEvent({ type: "error", message: "nope" }, ctx)[0]).toMatchObject({ type: "error", message: "nope" });
     const done = mapGrokEvent(
-      { type: "end", sessionId: "s9", usage: { input_tokens: 1, output_tokens: 2 }, total_cost_usd: 0.5 },
+      {
+        type: "end",
+        stopReason: "EndTurn",
+        sessionId: "s9",
+        usage: { input_tokens: 11887, cache_read_input_tokens: 0, output_tokens: 29 },
+        num_turns: 1,
+      },
       ctx,
     )[0] as Extract<AgentEvent, { type: "done" }>;
-    expect(done).toMatchObject({ type: "done", sessionId: "s9", totalCostUsd: 0.5 });
+    expect(done).toMatchObject({ type: "done", sessionId: "s9", subtype: "success", numTurns: 1 });
   });
 
   it("falls back to the request session id and ignores unknown types", () => {

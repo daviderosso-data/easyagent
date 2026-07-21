@@ -203,6 +203,16 @@ export interface McpPreset {
 
 export const MCP_PRESETS: McpPreset[] = [
   {
+    // Official Google Chrome DevTools MCP: drives a dedicated Chrome instance
+    // (own profile under ~/.cache/chrome-devtools-mcp) — navigate, click,
+    // screenshots, console, network. Zero config beyond installed Chrome.
+    id: "chrome",
+    name: "chrome",
+    kind: "stdio",
+    command: "npx",
+    args: ["-y", "chrome-devtools-mcp@latest"],
+  },
+  {
     id: "github",
     name: "github",
     kind: "http",

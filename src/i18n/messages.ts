@@ -282,6 +282,18 @@ export const messages = {
     viewTabsTip: "Show sessions as tabs",
     viewSplitTip: "Show sessions side by side",
 
+    // Marketplaces
+    skillsSearchPh: "Search skills to install (e.g. frontend, excel)…",
+    skillsMarketEmpty: "No skills found.",
+    skillsInstall: "Install",
+    skillsInstalling: "Installing…",
+    skillsInstallErr: "Install failed",
+    connSearchPh: "Search connectors (e.g. chrome, database)…",
+    connMarketEmpty: "No connectors found.",
+    connAdd: "Add",
+    connMarketSlow: "Searching the connector catalogue — this can take a little while…",
+    presetChromeDesc: "Drives your Chrome browser (open pages, click, read)",
+
     // Editor toolbar
     undoTip: "Undo",
     redoTip: "Redo",
@@ -298,6 +310,8 @@ export const messages = {
     orchRolesTitle: "Proposed agents",
     orchUpdatePlan: "Update the plan",
     orchBack: "Back",
+    orchExtraTitle: "Add more",
+    orchExtraPh: "Anything else the plan should take into account…",
     otherEngines: "Other engines",
     connected: "Signed in",
     optDefault: "Default",
@@ -621,6 +635,18 @@ export const messages = {
     viewTabsTip: "Sessioni a schede",
     viewSplitTip: "Sessioni affiancate",
 
+    // Marketplaces
+    skillsSearchPh: "Cerca skill da installare (es. frontend, excel)…",
+    skillsMarketEmpty: "Nessuna skill trovata.",
+    skillsInstall: "Installa",
+    skillsInstalling: "Installo…",
+    skillsInstallErr: "Installazione fallita",
+    connSearchPh: "Cerca connettori (es. chrome, database)…",
+    connMarketEmpty: "Nessun connettore trovato.",
+    connAdd: "Aggiungi",
+    connMarketSlow: "Sto cercando nel catalogo dei connettori — può volerci un po'…",
+    presetChromeDesc: "Guida il tuo browser Chrome (apre pagine, clicca, legge)",
+
     // Editor toolbar
     undoTip: "Annulla",
     redoTip: "Ripristina",
@@ -637,6 +663,8 @@ export const messages = {
     orchRolesTitle: "Agenti proposti",
     orchUpdatePlan: "Aggiorna il piano",
     orchBack: "Indietro",
+    orchExtraTitle: "Aggiungi altro",
+    orchExtraPh: "Altro di cui il piano deve tenere conto…",
     otherEngines: "Altri motori",
     connected: "Connesso",
     optDefault: "Predefinito",

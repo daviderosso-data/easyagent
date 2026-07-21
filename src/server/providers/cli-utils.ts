@@ -44,14 +44,19 @@ export function resolveBin(candidates: string[]): string | null {
   return null;
 }
 
-/** Short, non-throwing command run for status probes. */
+/** Short, non-throwing command run for status probes and installers. */
 export async function runQuick(
   cmd: string,
   args: string[],
   timeoutMs = 15000,
+  opts?: { cwd?: string; env?: Record<string, string> },
 ): Promise<{ ok: boolean; stdout: string; stderr: string }> {
   try {
-    const { stdout, stderr } = await execFileP(cmd, args, { env: engineEnv(), timeout: timeoutMs });
+    const { stdout, stderr } = await execFileP(cmd, args, {
+      env: { ...engineEnv(), ...opts?.env },
+      timeout: timeoutMs,
+      ...(opts?.cwd ? { cwd: opts.cwd } : {}),
+    });
     return { ok: true, stdout, stderr };
   } catch (e) {
     const err = e as { stdout?: string; stderr?: string };
