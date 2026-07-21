@@ -29,6 +29,12 @@ export function authError(lang: Lang): string {
     : "You are not signed in. Open Settings → Account and sign in with your subscription.";
 }
 
+export function engineUnavailable(label: string, lang: Lang): string {
+  return lang === "it"
+    ? `${label} non è disponibile su questo computer. Installalo (o avvialo) e riprova.`
+    : `${label} is not available on this computer. Install (or start) it and try again.`;
+}
+
 export function genericError(lang: Lang): string {
   return lang === "it"
     ? "Si è verificato un errore durante l'esecuzione. Riprova."

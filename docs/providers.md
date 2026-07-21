@@ -1,8 +1,40 @@
-# Provider abstraction (P5) and the road to multi-engine (P6)
+# Provider abstraction (P5) and multi-engine (P6)
 
-P5 introduced the `AgentProvider` seam. This document records the design and
-the P6 spike findings (CLI probes run 2026-07-21 on macOS, read-only, no
-logins performed).
+P5 introduced the `AgentProvider` seam; P6 registered the first non-Claude
+engines. This document records the design, the spike findings (CLI probes run
+2026-07-21 on macOS) and each adapter's implementation notes.
+
+## P6 engine lineup (implemented 2026-07-21)
+
+| Engine | Auth | Turn transport | Approvals | Resume | Effort |
+|---|---|---|---|---|---|
+| Claude Code (default) | subscription login (SDK) | Agent SDK `query()` | interactive modal | SDK sessions | yes |
+| Codex (ChatGPT) | ChatGPT login held by the official binary (npx fallback if not installed) | `codex exec --json` JSONL | policy-only (`--ask-for-approval never` + sandbox level) | `exec resume <thread_id>` | no |
+| Grok Build | SuperGrok / X Premium+ login held by the official binary | `grok -p … --output-format streaming-json` NDJSON | policy-only (`--sandbox`/`--permission-mode`); ACP interactive approvals are a later phase | `--resume <sessionId>` | yes (`--reasoning-effort`) |
+| Ollama (local) | none | HTTP `/api/chat` NDJSON | n/a (no tools in P6 — chat only) | easyagent-side history (`~/.easyagent/ollama-chats/`) | no |
+
+Verified live 2026-07-21 (real event captures in the session scratchpad,
+`p6samples/`): Codex turn + resume from the UI (tool call rendered, output,
+done, usage recorded with cached tokens), Ollama streaming turn (token
+deltas, usage), Grok unauthenticated error path. Codex gotchas discovered
+live and encoded in `codex/runner.ts`: `exec` rejects `--ask-for-approval`
+(it never prompts by construction — sandbox flag only); `exec resume`
+rejects `--sandbox`/`-m` (a resumed thread keeps its original settings) and
+wants flags before the positional session id; the `--json` stream never
+names the model and has no token-level text deltas (whole messages only).
+Grok's success-path stream shapes remain doc-derived until a login exists —
+the mapper is tolerant and the error path is verified.
+
+Cross-cutting rules, enforced by the neutral pipeline (`agent-runner.ts`):
+every engine gets the pre-turn save point, identical usage analytics
+(normalized token keys on the `done` event) and guaranteed slot release.
+Security profiles map per engine (unit-tested in
+`tests/providers-engines.test.ts`): headless engines cannot ask, so
+behavior "ask" degrades to a read-only sandbox — locked stays read-only,
+standard stays confined to the workspace, open means full access, and
+orchestration turns stay sandboxed even though they never prompt.
+Ambient API keys are scrubbed from every engine subprocess (`engineEnv`), so
+login-based auth is structural, not conventional.
 
 ## Architecture
 

@@ -201,9 +201,61 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
               </div>
             )}
             {accBusy === "login" && <p className="settings-sub">{t("loginHint")}</p>}
+            <EngineAccounts headers={headers} />
           </section>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Login/logout rows for the non-default engines (Codex, Grok, …). The main
+ *  Claude account keeps its richer block above; local engines (Ollama) have
+ *  no account and don't appear here. */
+function EngineAccounts({ headers }: { headers: () => Record<string, string> }) {
+  const t = useT();
+  const providers = useAgent((s) => s.providers);
+  const loadProviders = useAgent((s) => s.loadProviders);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const engines = providers.filter((p) => p.hasAccount && p.id !== "claude");
+  if (!engines.length) return null;
+
+  const act = async (id: string, action: "login" | "logout") => {
+    setBusy(id);
+    try {
+      await fetch(`/api/account/${action}?provider=${encodeURIComponent(id)}`, { method: "POST", headers: headers() });
+    } catch {
+      /* row state refreshes below either way */
+    }
+    await loadProviders();
+    setBusy(null);
+  };
+
+  return (
+    <div className="account-info">
+      <p className="settings-sub">
+        <b>{t("otherEngines")}</b>
+      </p>
+      {engines.map((p) => (
+        <div className="row-actions" key={p.id}>
+          <span style={{ minWidth: "10rem" }}>{p.label}</span>
+          {!p.status.installed ? (
+            <span className="settings-sub">{t("notInstalled")}</span>
+          ) : p.status.loggedIn ? (
+            <>
+              <span className="settings-sub">✓ {t("connected")}</span>
+              <button className="btn btn-ghost" disabled={!!busy} onClick={() => act(p.id, "logout")}>
+                {t("logoutBtn")}
+              </button>
+            </>
+          ) : (
+            <button className="btn btn-soft" disabled={!!busy} onClick={() => act(p.id, "login")}>
+              {busy === p.id ? t("loginHint") : t("loginBtn")}
+            </button>
+          )}
+        </div>
+      ))}
     </div>
   );
 }
