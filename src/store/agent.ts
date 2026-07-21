@@ -678,7 +678,9 @@ export const useAgent = create<AppState>((set, get) => ({
       wpanels.forEach((p: { sessionId?: string | null }, i: number) => {
         if (p.sessionId) loadItemsInto(panels[i], p.sessionId, token);
       });
-    } else if (roots.length) {
+    } else if (roots.length && !Array.isArray(w.openProjects)) {
+      // True first run (no saved workspace shape): open the first project as a
+      // starter. A deliberately emptied workspace (openProjects: []) stays empty.
       const s = newSession(roots[0]);
       set({ sessions: { [s.id]: s }, panels: [s.id], activePanel: s.id, openProjects: [roots[0]], activeProject: roots[0] });
       touchProjectApi(roots[0], token);
