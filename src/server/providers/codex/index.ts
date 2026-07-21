@@ -17,7 +17,7 @@ export const codexProvider: AgentProvider = {
     mcp: false,
     skills: false,
     resume: true,
-    effort: false,
+    effort: true, // -c model_reasoning_effort=… (new sessions; resume keeps its own)
     slashCommands: false,
     rateLimits: false,
   },

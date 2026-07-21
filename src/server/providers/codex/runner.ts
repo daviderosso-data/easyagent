@@ -24,27 +24,44 @@ export function codexCmd(): { cmd: string; pre: string[] } | null {
 }
 
 /** Map the app's security config to codex's sandbox levels. Headless codex
- *  cannot ask, so behavior "ask" degrades to a read-only sandbox. (No
- *  --ask-for-approval here: `codex exec` rejects it — verified 0.144.6,
- *  exit 2 — since exec never prompts by construction.) */
+ *  cannot ask, so every confined profile gets workspace-write (the agent must
+ *  be able to edit project files — the sandbox, not a prompt, is the guard);
+ *  network inside the sandbox follows the profile's install/network policy.
+ *  Expressed as `-c` config overrides, NOT the --sandbox flag: `exec resume`
+ *  rejects the flag but honours the overrides (verified live on 0.144.6 —
+ *  this is also what un-sticks sessions created read-only before this fix).
+ *  No --ask-for-approval: `exec` rejects it, it never prompts by construction. */
 export function codexSafetyArgs(c: SecurityConfig): string[] {
-  const sandbox = !c.sandbox && c.behavior === "open" ? "danger-full-access" : c.behavior === "ask" ? "read-only" : "workspace-write";
-  return ["--sandbox", sandbox];
+  if (!c.sandbox && c.behavior === "open") return ["-c", "sandbox_mode=danger-full-access"];
+  const network = c.installNetwork === "normal" || c.installNetwork === "off";
+  return ["-c", "sandbox_mode=workspace-write", ...(network ? ["-c", "sandbox_workspace_write.network_access=true"] : [])];
 }
 
 /** Build the `codex exec` argv. Verified against codex-cli 0.144.6:
  *  `exec resume` rejects --sandbox / --ask-for-approval / -m (exit 2) — a
  *  resumed thread keeps the settings it was created with — and flags must
  *  precede the positional session id. */
+/** Our effort scale → codex's model_reasoning_effort (max folds into xhigh). */
+export function codexEffort(effort: string): string {
+  return effort === "max" ? "xhigh" : effort;
+}
+
 export function codexExecArgs(p: {
   sessionId?: string;
   model?: string;
+  effort?: string;
   config: SecurityConfig;
   prompt: string;
 }): string[] {
+  const common = [
+    "--json",
+    "--skip-git-repo-check",
+    ...(p.effort ? ["-c", `model_reasoning_effort=${codexEffort(p.effort)}`] : []),
+    ...codexSafetyArgs(p.config),
+  ];
   return p.sessionId
-    ? ["exec", "resume", "--json", "--skip-git-repo-check", p.sessionId, p.prompt]
-    : ["exec", "--json", "--skip-git-repo-check", ...(p.model ? ["-m", p.model] : []), ...codexSafetyArgs(p.config), p.prompt];
+    ? ["exec", "resume", ...common, p.sessionId, p.prompt]
+    : ["exec", ...common, ...(p.model ? ["-m", p.model] : []), p.prompt];
 }
 
 export interface CodexMapCtx {
@@ -177,7 +194,7 @@ export async function runCodexTurn(req: TurnRequest): Promise<void> {
   }
 
   const fullPrompt = systemAppend ? `[Role instructions]\n${systemAppend}\n\n${prompt}` : prompt;
-  const args = [...invocation.pre, ...codexExecArgs({ sessionId, model, config, prompt: fullPrompt })];
+  const args = [...invocation.pre, ...codexExecArgs({ sessionId, model, effort: req.effort, config, prompt: fullPrompt })];
 
   const ctx: CodexMapCtx = {
     turnId,
@@ -239,7 +256,13 @@ export async function codexStatus(): Promise<EngineStatus> {
 }
 
 export async function codexModels(): Promise<ProviderModel[]> {
-  return [{ id: null, label: "Default" }];
+  // No list command exists; these ids were verified live against a ChatGPT
+  // account (2026-07-21): unknown ids fail the turn with a 400.
+  return [
+    { id: null, label: "Default" },
+    { id: "gpt-5.5", label: "GPT-5.5" },
+    { id: "gpt-5.4", label: "GPT-5.4" },
+  ];
 }
 
 export async function codexAccountStatus() {
