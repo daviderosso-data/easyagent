@@ -43,15 +43,15 @@ describe("parsePlan", () => {
     expect(p.roles![0]).toMatchObject({ provider: "claude", model: null });
   });
 
-  it("caps roles at 3 and questions at 4, dropping junk entries", () => {
+  it("caps roles at 6 and questions at 4, dropping junk entries", () => {
     const p = parsePlan(
       planText({
         questions: ["a", "b", "c", "d", "e", 42, ""],
-        roles: Array.from({ length: 5 }, (_, i) => ({ role: `R${i}`, folder: `f${i}`, task: "t", provider: "claude", model: null })),
+        roles: Array.from({ length: 8 }, (_, i) => ({ role: `R${i}`, folder: `f${i}`, task: "t", provider: "claude", model: null })),
       }),
       ENGINES,
     );
-    expect(p.roles).toHaveLength(3);
+    expect(p.roles).toHaveLength(6);
     expect(p.questions).toEqual(["a", "b", "c", "d"]);
   });
 

@@ -44,11 +44,13 @@ function engineCatalogue(engines: EngineOption[]): string {
 
 function planInstructions(engines: EngineOption[]): string {
   return `You are the ORCHESTRATOR of a new software project. The user gives a goal.
-Design the project and split the work into 2 to 3 specialized roles that fit THIS goal (Backend, Frontend,
-Design, Copy, or whatever actually fits). Choose a short PROJECT NAME and a SHARED BRIEF: the common
-decisions every role MUST follow (tech stack, data/API contracts, file/naming conventions, how pieces fit,
-visual/tone guidelines). For each role choose a short lowercase folder name (letters/dashes) and a concrete,
-self-contained task.
+Design the project and split the work into 2 to 6 specialized roles that fit THIS goal (e.g. Backend,
+Frontend, Database, Design, Copy, Tests/QA, Docs — whatever actually fits). Use the SMALLEST team that
+genuinely covers the goal: prefer 2-3 roles for simple goals, and only go up to 5-6 when the goal has
+clearly separable workstreams that can proceed in parallel. No filler roles. Choose a short PROJECT NAME
+and a SHARED BRIEF: the common decisions every role MUST follow (tech stack, data/API contracts,
+file/naming conventions, how pieces fit, visual/tone guidelines). For each role choose a short lowercase
+folder name (letters/dashes) and a concrete, self-contained task.
 
 ENGINES AND MODELS available on this machine (the ONLY ones you may assign):
 ${engineCatalogue(engines)}
@@ -87,7 +89,7 @@ export function parsePlan(text: string, engines: EngineOption[]): OrchestratorPl
   const fallback = engines[0]?.id ?? "claude";
   const roles: PlannedRole[] = parsed.roles
     .filter((r: any) => r && r.role && r.folder && r.task)
-    .slice(0, 3)
+    .slice(0, 6)
     .map((r: any) => {
       const provider = byId.has(String(r.provider)) ? String(r.provider) : fallback;
       const engine = byId.get(provider)!;
