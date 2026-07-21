@@ -278,6 +278,9 @@ export const messages = {
     notInstalled: "not installed",
     thisAction: "This action",
     panelColorTip: "Panel color",
+    unpinTip: "Close project (sessions end, files stay)",
+    viewTabsTip: "Show sessions as tabs",
+    viewSplitTip: "Show sessions side by side",
 
     // Editor toolbar
     undoTip: "Undo",
@@ -614,6 +617,9 @@ export const messages = {
     notInstalled: "non installato",
     thisAction: "Questa azione",
     panelColorTip: "Colore del pannello",
+    unpinTip: "Chiudi progetto (le sessioni terminano, i file restano)",
+    viewTabsTip: "Sessioni a schede",
+    viewSplitTip: "Sessioni affiancate",
 
     // Editor toolbar
     undoTip: "Annulla",

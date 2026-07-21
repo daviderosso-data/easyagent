@@ -16,6 +16,8 @@ export function AppShell({ onOpenSettings, children }: { onOpenSettings: () => v
   const model = useAgent((s) => s.sessions[s.activePanel]?.model ?? null);
   const apiKeySource = useAgent((s) => s.sessions[s.activePanel]?.apiKeySource ?? null);
   const security = useAgent((s) => s.settings.security);
+  const viewMode = useAgent((s) => s.viewMode);
+  const setViewMode = useAgent((s) => s.setViewMode);
   const t = useT();
 
   const profile = detectProfile(security);
@@ -40,6 +42,15 @@ export function AppShell({ onOpenSettings, children }: { onOpenSettings: () => v
             <span className={`dot ${apiKeySource ? "dot-ok" : "dot-idle"}`} />
             <span className="account-text">{apiKeySource ? t("subscription") : t("ready")}</span>
           </div>
+
+          <button
+            className="icon-btn"
+            onClick={() => setViewMode(viewMode === "split" ? "tabs" : "split")}
+            title={viewMode === "split" ? t("viewTabsTip") : t("viewSplitTip")}
+            aria-label={viewMode === "split" ? t("viewTabsTip") : t("viewSplitTip")}
+          >
+            {viewMode === "split" ? "🗂" : "▦"}
+          </button>
 
           <ThemeToggle />
 
