@@ -4,6 +4,7 @@ import { useAgent, MAX_PANELS } from "@/store/agent";
 import { useT } from "@/i18n";
 import { colorHex } from "@/lib/panel-colors";
 import { FileTree } from "@/components/FileTree";
+import { Icon } from "@/components/icons";
 
 export function Sidebar({
   onAddPanel,
@@ -34,7 +35,7 @@ export function Sidebar({
   return (
     <aside className="sidebar">
       <button className="projects-btn" onClick={onProjects}>
-        📂 {t("projects")}
+        <Icon name="folderOpen" size={14} /> {t("projects")}
       </button>
 
       {openProjects.length > 0 && (
@@ -52,7 +53,7 @@ export function Sidebar({
                 onKeyDown={(e) => e.key === "Enter" && activateProject(p)}
                 title={p}
               >
-                <span className="pin-name">📁 {name}</span>
+                <span className="pin-name"><Icon name="folder" size={12} /> {name}</span>
                 {running && <span className="session-dot" />}
                 <span
                   className="pin-close"
@@ -64,7 +65,7 @@ export function Sidebar({
                     unpinProject(p);
                   }}
                 >
-                  ✕
+                  <Icon name="x" size={11} />
                 </span>
               </div>
             );
@@ -82,7 +83,7 @@ export function Sidebar({
             title={t("newSession")}
             aria-label={t("newSession")}
           >
-            ＋
+            <Icon name="plus" size={14} />
           </button>
         </div>
         {visible.map((pid, i) => {
@@ -106,13 +107,13 @@ export function Sidebar({
           );
         })}
         <button className="orch-btn" onClick={onOrchestrate}>
-          🧩 {t("orchestrate")}
+          <Icon name="network" size={14} /> {t("orchestrate")}
         </button>
         <button className="orch-btn" onClick={onAnalytics}>
-          📊 {t("analytics")}
+          <Icon name="chart" size={14} /> {t("analytics")}
         </button>
         <button className="orch-btn" disabled={!sessions[activePanel]?.cwd} onClick={onSkills}>
-          ✨ {t("skills")}
+          <Icon name="sparkles" size={14} /> {t("skills")}
         </button>
       </div>
       <FileTree />

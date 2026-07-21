@@ -5,6 +5,7 @@ import { useAgent } from "@/store/agent";
 import { useT } from "@/i18n";
 import { detectProfile, type SecurityProfile, type Lang, type Theme } from "@/lib/settings";
 import { ConnectionsSection } from "@/components/ConnectionsSection";
+import { Icon } from "@/components/icons";
 
 interface AccountData {
   loggedIn: boolean;
@@ -80,14 +81,14 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
         <div className="settings-head">
           <h2>{t("settings")}</h2>
           <button className="icon-btn" onClick={onClose} aria-label={t("close")}>
-            ✕
+            <Icon name="x" size={14} />
           </button>
         </div>
 
         <div className="settings-body">
           {/* -------- Security -------- */}
           <section className="settings-section">
-            <h3>🛡️ {t("secSecurity")}</h3>
+            <h3><Icon name="shield" size={15} /> {t("secSecurity")}</h3>
             <p className="settings-sub">{t("securityProfile")}</p>
             <div className="profile-cards">
               <ProfileCard id="locked" active={activeProfile === "locked"} title={t("profileLocked")} desc={t("profileLockedDesc")} onClick={() => chooseProfile("locked")} />
@@ -150,7 +151,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
 
           {/* -------- Language & appearance -------- */}
           <section className="settings-section">
-            <h3>🌐 {t("secLanguage")}</h3>
+            <h3><Icon name="globe" size={15} /> {t("secLanguage")}</h3>
             <label className="select-row">
               <span>{t("languageLabel")}</span>
               <select className="field-input" value={lang} onChange={(e) => setLang(e.target.value as Lang)}>
@@ -170,7 +171,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
 
           {/* -------- Account -------- */}
           <section className="settings-section">
-            <h3>👤 {t("secAccount")}</h3>
+            <h3><Icon name="user" size={15} /> {t("secAccount")}</h3>
             {account?.loggedIn ? (
               <div className="account-info">
                 {account.email && (

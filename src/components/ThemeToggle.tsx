@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAgent } from "@/store/agent";
+import { Icon } from "@/components/icons";
 
 // Applies the theme to <html data-theme> and offers a quick light/dark toggle.
 export function ThemeToggle() {
@@ -25,7 +26,7 @@ export function ThemeToggle() {
 
   return (
     <button className="icon-btn" onClick={() => setTheme(dark ? "light" : "dark")} title="Theme" aria-label="Theme">
-      {dark ? "☀️" : "🌙"}
+      <Icon name={dark ? "sun" : "moon"} size={15} />
     </button>
   );
 }

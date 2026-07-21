@@ -17,6 +17,7 @@ import {
   type SearchHit,
 } from "@/lib/fs-client";
 import { CodeEditor } from "@/components/CodeEditor";
+import { Icon } from "@/components/icons";
 
 interface Tab {
   path: string;
@@ -186,7 +187,7 @@ export function FileTree() {
           title={t("openFolderTip")}
           disabled={!cwd}
         >
-          📂 {t("files")} ↗
+          <Icon name="folderOpen" size={13} /> {t("files")} <Icon name="external" size={11} />
         </button>
         <button
           className="ft-refresh"
@@ -194,10 +195,10 @@ export function FileTree() {
           title={t("newFile")}
           disabled={!cwd}
         >
-          ＋
+          <Icon name="plus" size={14} />
         </button>
         <button className="ft-refresh" onClick={bump} aria-label="refresh">
-          ↻
+          <Icon name="refresh" size={13} />
         </button>
       </div>
 
@@ -212,7 +213,7 @@ export function FileTree() {
         />
         {query && (
           <button className="ft-search-clear" onClick={() => setQuery("")} aria-label={t("cancel")}>
-            ✕
+            <Icon name="x" size={13} />
           </button>
         )}
       </div>
@@ -229,7 +230,7 @@ export function FileTree() {
                 onClick={() => !h.isDir && openFile(h.path)}
                 title={h.path}
               >
-                <span className="ft-icon">{h.isDir ? "📁" : "📄"}</span>
+                <span className="ft-icon"><Icon name={h.isDir ? "folder" : "file"} size={13} /></span>
                 <span className="ft-name">{h.name}</span>
                 {h.line && <span className="ft-hit-line">:{h.line}</span>}
                 {h.preview && <span className="ft-hit-preview">{h.preview}</span>}
@@ -350,7 +351,7 @@ function TreeNode({
         }}
         title={entry.name}
       >
-        <span className="ft-icon">{entry.isDir ? (open ? "📂" : "📁") : "📄"}</span>
+        <span className="ft-icon"><Icon name={entry.isDir ? (open ? "folderOpen" : "folder") : "file"} size={13} /></span>
         <span className="ft-name">{entry.name}</span>
         <span
           className="ft-more"
@@ -514,13 +515,13 @@ function EditorModal({
                   onCloseTab(tb.path);
                 }}
               >
-                ✕
+                <Icon name="x" size={13} />
               </span>
             </button>
           ))}
           <span className="editor-tabs-spacer" />
           <button className="icon-btn icon-btn-sm" onClick={onCloseAll} aria-label={t("close")}>
-            ✕
+            <Icon name="x" size={13} />
           </button>
         </div>
 

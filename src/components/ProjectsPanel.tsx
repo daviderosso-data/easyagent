@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useAgent } from "@/store/agent";
 import { useT } from "@/i18n";
 import { TEMPLATE_IDS, TEMPLATE_LABEL_KEY, type TemplateId } from "@/lib/templates";
+import { Icon } from "@/components/icons";
 
 interface ProjectInfo {
   folder: string;
@@ -100,9 +101,9 @@ export function ProjectsPanel({ panelId, onClose }: { panelId: string; onClose: 
       <div className="modal-backdrop" role="dialog" aria-modal="true">
         <div className="settings-modal">
           <div className="settings-head">
-            <h2>📁 {selected.displayName}</h2>
+            <h2><Icon name="folder" size={16} /> {selected.displayName}</h2>
             <button className="icon-btn" onClick={onClose} aria-label={t("close")}>
-              ✕
+              <Icon name="x" size={14} />
             </button>
           </div>
           <div className="settings-body">
@@ -110,7 +111,7 @@ export function ProjectsPanel({ panelId, onClose }: { panelId: string; onClose: 
               ‹ {t("back")}
             </button>
             <button className="btn btn-primary full-btn" onClick={() => { openInPanel(selected.path); onClose(); }}>
-              ＋ {t("newChat")}
+              <Icon name="plus" size={13} /> {t("newChat")}
             </button>
             <h4 className="limits-title">{t("conversations")}</h4>
             {sessions === null ? (
@@ -138,7 +139,7 @@ export function ProjectsPanel({ panelId, onClose }: { panelId: string; onClose: 
     <div className="modal-backdrop" role="dialog" aria-modal="true">
       <div className="settings-modal">
         <div className="settings-head">
-          <h2>📂 {t("projects")}</h2>
+          <h2><Icon name="folderOpen" size={16} /> {t("projects")}</h2>
           <button className="icon-btn" onClick={onClose} aria-label={t("close")}>
             ✕
           </button>
@@ -153,7 +154,7 @@ export function ProjectsPanel({ panelId, onClose }: { panelId: string; onClose: 
               onKeyDown={(e) => { if (e.key === "Enter") void create(); }}
             />
             <button className="btn btn-primary btn-sm" disabled={!newName.trim()} onClick={() => void create()}>
-              ＋ {t("create")}
+              <Icon name="plus" size={13} /> {t("create")}
             </button>
           </div>
           <div className="tpl-row">
@@ -209,7 +210,7 @@ export function ProjectsPanel({ panelId, onClose }: { panelId: string; onClose: 
                           ✎
                         </button>
                         <button className="icon-btn icon-btn-sm" title={t("deletePermanently")} onClick={() => setConfirmDel(p.folder)}>
-                          🗑
+                          <Icon name="trash" size={14} />
                         </button>
                       </>
                     )}

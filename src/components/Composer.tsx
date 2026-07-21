@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useAgent } from "@/store/agent";
 import { useT } from "@/i18n";
 import { CommandPalette } from "@/components/CommandPalette";
+import { Icon } from "@/components/icons";
 
 export function Composer({ id }: { id: string }) {
   const [text, setText] = useState("");
@@ -87,7 +88,7 @@ export function Composer({ id }: { id: string }) {
         />
         {running ? (
           <button className="btn btn-stop" onClick={() => void stop(id)}>
-            ◼ {t("stop")}
+            <Icon name="stop" size={13} /> {t("stop")}
           </button>
         ) : (
           <button className="btn btn-primary btn-send" onClick={submit} disabled={!text.trim() || !cwd}>

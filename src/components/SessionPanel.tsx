@@ -9,6 +9,7 @@ import { Transcript } from "@/components/Transcript";
 import { Composer } from "@/components/Composer";
 import { ApprovalModal } from "@/components/ApprovalModal";
 import { HistoryPanel } from "@/components/HistoryPanel";
+import { Icon } from "@/components/icons";
 
 const EFFORTS: { id: "" | Effort; key: "optDefault" | "effLow" | "effMedium" | "effHigh" | "effXhigh" | "effMax" }[] = [
   { id: "", key: "optDefault" },
@@ -137,7 +138,7 @@ export function SessionPanel({ id, onChangeFolder }: { id: string; onChangeFolde
         </span>
         {roleLabel && <span className="role-badge" style={accent ? { background: accent, color: "#fff" } : undefined}>{roleLabel}</span>}
         <button className="folder-btn folder-btn-sm" onClick={() => onChangeFolder(id)} title={cwd}>
-          <span>📁</span>
+          <Icon name="folder" size={13} />
           <span className="folder-btn-name">{folderName}</span>
         </button>
 
@@ -189,14 +190,14 @@ export function SessionPanel({ id, onChangeFolder }: { id: string; onChangeFolde
 
         <span className="panel-head-spacer" />
         <button className="icon-btn icon-btn-sm" disabled={!cwd} title={t("historyBtnTip")} aria-label={t("historyBtnTip")} onClick={() => setHistoryOpen(true)}>
-          🕘
+          <Icon name="clock" size={14} />
         </button>
         <button className="icon-btn icon-btn-sm" disabled={!cwd} title={t("previewTip")} aria-label={t("previewTip")} onClick={onPreviewClick}>
-          ▶
+          <Icon name="play" size={13} />
         </button>
         {multi && (
           <button className="icon-btn icon-btn-sm" onClick={() => removePanel(id)} aria-label={t("close")}>
-            ✕
+            <Icon name="x" size={13} />
           </button>
         )}
       </div>
@@ -209,7 +210,7 @@ export function SessionPanel({ id, onChangeFolder }: { id: string; onChangeFolde
           </>
         ) : (
           <div className="empty">
-            <div className="empty-emoji">📁</div>
+            <div className="empty-emoji"><Icon name="folder" size={36} /></div>
             <h2>{t("noProjectTitle")}</h2>
             <p>{t("noProjectBody")}</p>
             <button className="btn btn-primary" onClick={() => onChangeFolder(id)}>

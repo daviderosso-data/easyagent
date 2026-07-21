@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useAgent } from "@/store/agent";
 import { useT, useLang } from "@/i18n";
 import { DiffText } from "@/components/DiffView";
+import { Icon } from "@/components/icons";
 
 interface SavePoint {
   hash: string;
@@ -124,9 +125,9 @@ export function HistoryPanel({ id, onClose }: { id: string; onClose: () => void 
     <div className="modal-backdrop" role="dialog" aria-modal="true">
       <div className="settings-modal">
         <div className="settings-head">
-          <h2>🕘 {t("historyTitle")}</h2>
+          <h2><Icon name="clock" size={16} /> {t("historyTitle")}</h2>
           <button className="icon-btn" onClick={onClose} aria-label={t("close")}>
-            ✕
+            <Icon name="x" size={14} />
           </button>
         </div>
 
