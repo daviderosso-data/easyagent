@@ -1,7 +1,8 @@
-import { accountStatus } from "@/server/account";
+import { defaultProvider } from "@/server/providers";
 
 export const runtime = "nodejs";
 
 export async function GET() {
-  return Response.json(await accountStatus());
+  const account = defaultProvider().account;
+  return Response.json(account ? await account.status() : { loggedIn: false });
 }

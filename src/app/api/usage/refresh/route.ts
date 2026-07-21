@@ -1,7 +1,7 @@
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import { homedir } from "node:os";
 import { tokenValid, buildAgentEnv } from "@/server/security";
-import { captureRateLimits } from "@/server/agent-runner";
+import { captureRateLimits } from "@/server/providers/claude/runner";
 import { readUsage } from "@/server/usage-store";
 
 export const runtime = "nodejs";

@@ -1,0 +1,97 @@
+// The provider contract: one engine = one AgentProvider. A provider turns a
+// TurnRequest into a stream of AgentEvents (the client protocol) via send() —
+// nothing downstream of that seam knows which engine produced the events.
+// Everything provider-neutral (concurrency slot, save-point snapshot, usage
+// analytics) lives in the runTurn pipeline (agent-runner.ts), so providers
+// can't get it wrong or drift apart.
+
+import type { AgentEvent } from "@/lib/agent-events";
+import type { SecurityConfig, Lang } from "@/lib/settings";
+import type { Turn } from "@/server/session-manager";
+
+/** Engines the app can drive. P5 registers only "claude"; P6 (multi-engine via
+ *  login) adds the others — see docs/providers.md for the spike findings. */
+export type ProviderId = "claude" | "codex" | "gemini" | "ollama";
+
+/** One turn, as handed to a provider by the neutral pipeline. */
+export interface TurnRequest {
+  turnId: string;
+  /** Registered in the sessionManager by the route; the provider must honour
+   *  turn.abort and resolve turn.pendingApprovals it creates. Slot release is
+   *  NOT the provider's job (the pipeline guarantees it). */
+  turn: Turn;
+  prompt: string;
+  cwd: string;
+  sessionId?: string;
+  config: SecurityConfig;
+  lang: Lang;
+  model?: string;
+  effort?: string;
+  systemAppend?: string;
+  /** Emit protocol events. The last event MUST be `done` or `error`; a `done`
+   *  should carry usage with Anthropic-style token keys (input_tokens,
+   *  output_tokens, cache_read_input_tokens, cache_creation_input_tokens) —
+   *  the pipeline records analytics from it. Providers normalize into that. */
+  send: (e: AgentEvent) => void;
+}
+
+/** What an engine can do — lets the UI adapt per provider (P6) instead of
+ *  feature-flagging by name. */
+export interface ProviderCapabilities {
+  /** Interactive per-tool approvals (the approve/deny modal flow). */
+  approvals: boolean;
+  /** External MCP connections. */
+  mcp: boolean;
+  /** Project skills loading. */
+  skills: boolean;
+  /** Server-side session resume across turns. */
+  resume: boolean;
+  /** Reasoning-effort selector. */
+  effort: boolean;
+  /** Slash-command palette. */
+  slashCommands: boolean;
+  /** Subscription rate-limit introspection. */
+  rateLimits: boolean;
+}
+
+export interface SessionSummary {
+  sessionId: string;
+  firstPrompt: string;
+  summary: string;
+  lastModified: number;
+}
+
+export interface AccountStatus {
+  loggedIn: boolean;
+  email?: string;
+  subscriptionType?: string;
+  authMethod?: string;
+}
+
+/** Login/logout for engines authenticated via account login (not API key). */
+export interface AccountFacet {
+  status(): Promise<AccountStatus>;
+  /** Launches the (browser) login flow detached; poll status() to detect completion. */
+  startLogin(): void;
+  waitForLogin(timeoutMs?: number): Promise<AccountStatus>;
+  logout(): Promise<void>;
+}
+
+/** Stored-conversation history, when the engine persists sessions on disk. */
+export interface HistoryFacet {
+  listSessions(dir: string): Promise<SessionSummary[]>;
+  loadSessionItems(sessionId: string): Promise<unknown[]>;
+}
+
+export interface AgentProvider {
+  id: ProviderId;
+  label: string;
+  capabilities: ProviderCapabilities;
+  /** Stream one turn. Must emit `done` or `error` as its final event and never
+   *  throw for normal failures (auth, abort, engine errors → events). */
+  runTurn(req: TurnRequest): Promise<void>;
+  /** Absent when the engine needs no login (e.g. local models). */
+  account?: AccountFacet;
+  /** Absent when the engine has no stored sessions to browse. */
+  history?: HistoryFacet;
+}

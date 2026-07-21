@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { AgentEvent } from "@/lib/agent-events";
 import { runTurn } from "@/server/agent-runner";
 import { genericError } from "@/server/i18n-server";
+import { getProvider } from "@/server/providers";
 import { sessionManager } from "@/server/session-manager";
 import { tokenValid, validateCwd } from "@/server/security";
 import { loadSettings } from "@/server/settings-store";
@@ -22,6 +23,7 @@ const BodySchema = z.object({
   cwd: z.string().min(1),
   sessionId: z.string().optional(),
   lang: z.enum(["en", "it"]).default("en"),
+  provider: z.string().optional(),
   model: z.string().optional(),
   effort: z.enum(["low", "medium", "high", "xhigh", "max"]).optional(),
   systemAppend: z.string().max(20_000).optional(),
@@ -51,6 +53,10 @@ export async function POST(req: Request) {
   // Confine the working directory (defense-in-depth on top of the middleware).
   const cwdCheck = validateCwd(body.cwd);
   if (!cwdCheck.ok) return err(400, cwdCheck.error ?? "Invalid folder.");
+
+  // Resolve the engine up front so an unknown id is a 400, not a dead stream.
+  const provider = getProvider(body.provider);
+  if (!provider) return err(400, "Unknown provider.");
 
   // Security config comes from the server-side settings — except orchestration
   // turns, which use the autonomous-but-safe config so the loop never stalls.
@@ -102,6 +108,7 @@ export async function POST(req: Request) {
           sessionId: body.sessionId,
           config,
           lang: body.lang,
+          provider: provider.id,
           model: body.model ?? settings.model ?? undefined,
           effort: body.effort,
           systemAppend: body.systemAppend,

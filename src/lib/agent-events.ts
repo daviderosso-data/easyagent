@@ -9,6 +9,8 @@ export interface SendRequest {
   cwd: string;
   sessionId?: string;
   lang: Lang;
+  /** Engine to run the turn ("claude" today; more in P6). Omit = default. */
+  provider?: string;
   model?: string;
   effort?: Effort;
   /** Role persona appended to the system prompt (orchestrator role panels). */
