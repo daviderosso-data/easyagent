@@ -5,9 +5,16 @@ import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
+/** One tool invocation as Ollama represents it (arguments already parsed). */
+export interface ToolCall {
+  function?: { name?: string; arguments?: Record<string, unknown> };
+}
+
 export interface ChatMessage {
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "tool" | "system";
   content: string;
+  tool_calls?: ToolCall[];
+  tool_name?: string;
 }
 
 export interface StoredChat {

@@ -11,7 +11,7 @@ engines. This document records the design, the spike findings (CLI probes run
 | Claude Code (default) | subscription login (SDK) | Agent SDK `query()` | interactive modal | SDK sessions | yes |
 | Codex (ChatGPT) | ChatGPT login held by the official binary (npx fallback if not installed) | `codex exec --json` JSONL | policy-only (`--ask-for-approval never` + sandbox level) | `exec resume <thread_id>` | no |
 | Grok Build | SuperGrok / X Premium+ login held by the official binary | `grok -p … --output-format streaming-json` NDJSON | policy-only (`--sandbox`/`--permission-mode`); ACP interactive approvals are a later phase | `--resume <sessionId>` | yes (`--reasoning-effort`) |
-| Ollama (local) | none | HTTP `/api/chat` NDJSON | n/a (no tools in P6 — chat only) | easyagent-side history (`~/.easyagent/ollama-chats/`) | no |
+| Ollama (local) | none | HTTP `/api/chat` NDJSON + easyagent-driven tool loop (list/read/write files, project-confined, writes go through the approval modal) | yes — our loop, our modal | easyagent-side history (`~/.easyagent/ollama-chats/`) | no |
 
 Verified live 2026-07-21 (real event captures in the session scratchpad,
 `p6samples/`): Codex turn + resume from the UI (tool call rendered, output,
@@ -29,12 +29,25 @@ Cross-cutting rules, enforced by the neutral pipeline (`agent-runner.ts`):
 every engine gets the pre-turn save point, identical usage analytics
 (normalized token keys on the `done` event) and guaranteed slot release.
 Security profiles map per engine (unit-tested in
-`tests/providers-engines.test.ts`): headless engines cannot ask, so
-behavior "ask" degrades to a read-only sandbox — locked stays read-only,
-standard stays confined to the workspace, open means full access, and
-orchestration turns stay sandboxed even though they never prompt.
-Ambient API keys are scrubbed from every engine subprocess (`engineEnv`), so
-login-based auth is structural, not conventional.
+`tests/providers-engines.test.ts`): headless engines cannot ask, so every
+confined profile gets a **workspace-write sandbox** — the agent must be able
+to edit project files (that's the product) and the kernel sandbox, not a
+prompt, is the guard; network inside the sandbox follows the profile's
+install/network policy; open = full access; orchestration stays sandboxed.
+Codex safety is expressed as `-c` config overrides (`sandbox_mode=…`), NOT
+the `--sandbox` flag: `exec resume` rejects the flag but honours overrides
+(verified live) — which also un-sticks threads created read-only by the
+earlier mapping. Ambient API keys are scrubbed from every engine subprocess
+(`engineEnv`), so login-based auth is structural, not conventional.
+
+P6.1 (same-day fixes after first real use): engine-neutral UI strings (no
+company/model names in panel chrome, welcome, working/reasoning labels);
+Codex model picker (`gpt-5.5`, `gpt-5.4` — ids verified live against a
+ChatGPT account, no list command exists) and reasoning effort via
+`-c model_reasoning_effort` (xhigh verified; our "max" folds into xhigh);
+Grok model list parsed from `grok models` (works pre-login); the Ollama
+tool loop above, verified live end-to-end including the approval path
+(`tests/ollama-live.test.ts`, opt-in with OLLAMA_LIVE=1).
 
 ## Architecture
 

@@ -54,7 +54,7 @@ export function ApprovalModal({ id }: { id: string }) {
         </div>
 
         <div className="modal-body">
-          {isRed && reason && <p className="red-warning">Claude {reason}.</p>}
+          {isRed && reason && <p className="red-warning">{t("thisAction")} {reason}.</p>}
           {isEdit && <DiffView toolName={pending.toolName} input={pending.input} />}
           {isBash && (
             <pre className="cmd-preview">

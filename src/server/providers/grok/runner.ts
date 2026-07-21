@@ -21,14 +21,14 @@ export function resolveGrokBin(): string | null {
   return resolveBin([process.env.EASYAGENT_GROK_BIN ?? "", "grok"].filter(Boolean));
 }
 
-/** Map the app's security config to grok's headless policy flags. */
+/** Map the app's security config to grok's headless policy flags. Headless
+ *  grok cannot prompt, so confined profiles get the workspace sandbox with
+ *  edits allowed — the agent must be able to modify project files; the
+ *  kernel sandbox (not a prompt) is the guard. */
 export function grokSafetyArgs(c: SecurityConfig): string[] {
   const args: string[] = [];
-  // behavior "ask" has no interactive channel in headless mode → the honest
-  // analogue is a read-only sandbox (nothing mutates without a say-so).
-  if (c.sandbox) args.push("--sandbox", c.behavior === "ask" ? "read-only" : "workspace");
-  const mode = c.behavior === "open" ? "bypassPermissions" : c.behavior === "auto" ? "acceptEdits" : "default";
-  args.push("--permission-mode", mode);
+  if (c.sandbox) args.push("--sandbox", "workspace");
+  args.push("--permission-mode", c.behavior === "open" ? "bypassPermissions" : "acceptEdits");
   return args;
 }
 
@@ -160,7 +160,12 @@ export async function grokStatus(): Promise<EngineStatus> {
 }
 
 export async function grokModels(): Promise<ProviderModel[]> {
-  return [{ id: null, label: "Default" }];
+  const bin = resolveGrokBin();
+  if (!bin) return [{ id: null, label: "Default" }];
+  // `grok models` lists "  * <id>" lines (works even before login).
+  const r = await runQuick(bin, ["models"], 10000);
+  const ids = [...r.stdout.matchAll(/^\s*\*\s+(\S+)/gm)].map((m) => m[1]);
+  return [{ id: null, label: "Default" }, ...[...new Set(ids)].map((id) => ({ id, label: id }))];
 }
 
 export function grokStartLogin(): void {

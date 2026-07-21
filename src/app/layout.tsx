@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "easyagent",
-  description: "Claude Code with a simple interface, for everyone.",
+  description: "Your coding agents in one simple interface.",
 };
 
 export default function RootLayout({

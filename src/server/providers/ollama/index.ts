@@ -5,7 +5,7 @@ export const ollamaProvider: AgentProvider = {
   id: "ollama",
   label: "Ollama (local)",
   capabilities: {
-    approvals: false,
+    approvals: true, // the tool loop is ours, so writes go through the approval modal
     mcp: false,
     skills: false,
     resume: true,

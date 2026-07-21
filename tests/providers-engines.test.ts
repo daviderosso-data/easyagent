@@ -8,34 +8,38 @@ import type { AgentEvent } from "@/lib/agent-events";
 // AgentEvent mapping (pure functions).
 
 describe("codexSafetyArgs", () => {
-  it("maps the three profiles to sandbox levels (exec never prompts, no approval flag)", () => {
-    expect(codexSafetyArgs(PROFILES.locked)).toEqual(["--sandbox", "read-only"]);
-    expect(codexSafetyArgs(PROFILES.standard)).toEqual(["--sandbox", "workspace-write"]);
-    expect(codexSafetyArgs(PROFILES.open)).toEqual(["--sandbox", "danger-full-access"]);
+  it("confined profiles can edit files (workspace-write via -c, resume-safe); network follows the profile", () => {
+    expect(codexSafetyArgs(PROFILES.locked)).toEqual(["-c", "sandbox_mode=workspace-write"]);
+    expect(codexSafetyArgs(PROFILES.standard)).toEqual([
+      "-c", "sandbox_mode=workspace-write", "-c", "sandbox_workspace_write.network_access=true",
+    ]);
+    expect(codexSafetyArgs(PROFILES.open)).toEqual(["-c", "sandbox_mode=danger-full-access"]);
   });
 
   it("keeps orchestration turns sandboxed despite behavior=open", () => {
-    expect(codexSafetyArgs(ORCHESTRATION_CONFIG)).toEqual(["--sandbox", "workspace-write"]);
+    expect(codexSafetyArgs(ORCHESTRATION_CONFIG)).toEqual([
+      "-c", "sandbox_mode=workspace-write", "-c", "sandbox_workspace_write.network_access=true",
+    ]);
   });
 });
 
 describe("codexExecArgs", () => {
-  it("new turns carry model + safety flags before the prompt", () => {
-    expect(codexExecArgs({ model: "gpt-5-codex", config: PROFILES.standard, prompt: "hi" })).toEqual([
-      "exec", "--json", "--skip-git-repo-check", "-m", "gpt-5-codex", "--sandbox", "workspace-write", "hi",
+  it("new turns carry effort + safety overrides + model before the prompt", () => {
+    expect(codexExecArgs({ model: "gpt-5.5", effort: "max", config: PROFILES.locked, prompt: "hi" })).toEqual([
+      "exec", "--json", "--skip-git-repo-check", "-c", "model_reasoning_effort=xhigh", "-c", "sandbox_mode=workspace-write", "-m", "gpt-5.5", "hi",
     ]);
   });
 
-  it("resume drops safety/model flags (codex 0.144.6 rejects them, exit 2) and puts flags before the session id", () => {
-    expect(codexExecArgs({ sessionId: "th_1", model: "gpt-5-codex", config: PROFILES.locked, prompt: "hi" })).toEqual([
-      "exec", "resume", "--json", "--skip-git-repo-check", "th_1", "hi",
+  it("resume keeps -c overrides (they un-stick read-only threads) but drops -m; flags precede the session id", () => {
+    expect(codexExecArgs({ sessionId: "th_1", model: "gpt-5.5", config: PROFILES.locked, prompt: "hi" })).toEqual([
+      "exec", "resume", "--json", "--skip-git-repo-check", "-c", "sandbox_mode=workspace-write", "th_1", "hi",
     ]);
   });
 });
 
 describe("grokSafetyArgs / grokEffort", () => {
-  it("maps the three profiles", () => {
-    expect(grokSafetyArgs(PROFILES.locked)).toEqual(["--sandbox", "read-only", "--permission-mode", "default"]);
+  it("confined profiles can edit files inside the workspace sandbox", () => {
+    expect(grokSafetyArgs(PROFILES.locked)).toEqual(["--sandbox", "workspace", "--permission-mode", "acceptEdits"]);
     expect(grokSafetyArgs(PROFILES.standard)).toEqual(["--sandbox", "workspace", "--permission-mode", "acceptEdits"]);
     expect(grokSafetyArgs(PROFILES.open)).toEqual(["--permission-mode", "bypassPermissions"]);
   });
