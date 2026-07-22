@@ -33,6 +33,33 @@ export function Composer({ id }: { id: string }) {
     if (!cwd || running) return;
     setFiles((cur) => addUploadFiles(cur, incoming, (why: UploadReject) => pushToast(REJECT_TOAST[why])));
   };
+
+  // While a file is dragged anywhere over the window: (1) neutralize the
+  // browser's default drop (which would REPLACE the app with the file), and
+  // (2) light up this composer so the drop target is obvious.
+  const [fileDragActive, setFileDragActive] = useState(false);
+  useEffect(() => {
+    let timer: number | undefined;
+    const isFileDrag = (e: DragEvent) => e.dataTransfer?.types.includes("Files") ?? false;
+    const onWindowDragOver = (e: DragEvent) => {
+      if (!isFileDrag(e)) return;
+      e.preventDefault();
+      setFileDragActive(true);
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => setFileDragActive(false), 250);
+    };
+    const onWindowDrop = (e: DragEvent) => {
+      if (isFileDrag(e)) e.preventDefault();
+      setFileDragActive(false);
+    };
+    window.addEventListener("dragover", onWindowDragOver);
+    window.addEventListener("drop", onWindowDrop);
+    return () => {
+      window.removeEventListener("dragover", onWindowDragOver);
+      window.removeEventListener("drop", onWindowDrop);
+      window.clearTimeout(timer);
+    };
+  }, []);
   // The palette lists Claude Code slash commands — hide it on engines without them.
   const slashCommands = providers.find((p) => p.id === provider)?.capabilities.slashCommands ?? provider === "claude";
 
@@ -86,7 +113,7 @@ export function Composer({ id }: { id: string }) {
 
   return (
     <div
-      className={`composer ${dragOver ? "composer-drop" : ""}`}
+      className={`composer ${dragOver ? "composer-drop" : fileDragActive && cwd && !running ? "composer-drop-hint" : ""}`}
       onDragOver={(e) => {
         if (!e.dataTransfer.types.includes("Files")) return;
         e.preventDefault();
@@ -141,7 +168,7 @@ export function Composer({ id }: { id: string }) {
               </button>
             </span>
           ))}
-          {uploading && <span className="attach-uploading">{t("uploadingLbl")}</span>}
+          <span className="attach-uploading">{uploading ? t("uploadingLbl") : t("attachPendingHint")}</span>
         </div>
       )}
 

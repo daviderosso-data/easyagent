@@ -2798,3 +2798,9 @@ textarea:focus-visible,
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* Soft hint while a file is dragged anywhere over the window. */
+.composer-drop-hint {
+  outline: 2px dashed var(--line);
+  outline-offset: -4px;
+  border-radius: var(--ds-radius-md);
+}
