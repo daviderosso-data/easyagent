@@ -28,7 +28,7 @@ const BodySchema = z.object({
         }),
       )
       .min(1)
-      .max(3),
+      .max(6),
   }),
 });
 

@@ -167,8 +167,19 @@ export function OrchestratorModal({ onClose }: { onClose: () => void }) {
                 return (
                   <div className="orch-role" key={i}>
                     <div className="orch-role-head">
-                      <b>{r.role}</b>
-                      <code>{r.folder}/</code>
+                      <input
+                        className="field-input orch-role-name"
+                        value={r.role}
+                        placeholder={t("orchRolePh")}
+                        onChange={(e) => updateRole(i, { role: e.target.value })}
+                      />
+                      <input
+                        className="field-input orch-role-folder"
+                        value={r.folder}
+                        spellCheck={false}
+                        placeholder={t("orchFolderPh")}
+                        onChange={(e) => updateRole(i, { folder: e.target.value })}
+                      />
                       <span className="panel-head-spacer" />
                       <select
                         className="hdr-select"
@@ -194,11 +205,41 @@ export function OrchestratorModal({ onClose }: { onClose: () => void }) {
                           </option>
                         ))}
                       </select>
+                      <button
+                        className="icon-btn icon-btn-sm"
+                        aria-label={t("close")}
+                        disabled={plan.roles.length <= 1}
+                        onClick={() => setPlan({ ...plan, roles: plan.roles.filter((_, j) => j !== i) })}
+                      >
+                        <Icon name="x" size={12} />
+                      </button>
                     </div>
-                    <p className="settings-sub">{r.task}</p>
+                    <textarea
+                      className="field-input orch-role-task"
+                      rows={2}
+                      value={r.task}
+                      placeholder={t("orchTaskPh")}
+                      onChange={(e) => updateRole(i, { task: e.target.value })}
+                    />
                   </div>
                 );
               })}
+              {plan.roles.length < 6 && (
+                <button
+                  className="link-btn"
+                  onClick={() =>
+                    setPlan({
+                      ...plan,
+                      roles: [
+                        ...plan.roles,
+                        { role: "", folder: `agent-${plan.roles.length + 1}`, task: "", provider: engines[0]?.id ?? "claude", model: null },
+                      ],
+                    })
+                  }
+                >
+                  <Icon name="plus" size={12} /> {t("orchAddAgent")}
+                </button>
+              )}
 
               {error && <p className="orch-exp-note">⚠️ {error}</p>}
               <div className="modal-actions">
@@ -208,7 +249,11 @@ export function OrchestratorModal({ onClose }: { onClose: () => void }) {
                 <button className="btn btn-soft" onClick={refine} disabled={busy}>
                   {busy ? t("orchPlanning") : <><Icon name="refresh" size={13} /> {t("orchUpdatePlan")}</>}
                 </button>
-                <button className="btn btn-primary" onClick={launch} disabled={busy}>
+                <button
+                  className="btn btn-primary"
+                  onClick={launch}
+                  disabled={busy || plan.roles.some((r) => !r.role.trim() || !r.folder.trim() || !r.task.trim())}
+                >
                   ▸ {t("startOrchestration")}
                 </button>
               </div>

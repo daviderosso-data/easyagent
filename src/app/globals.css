@@ -829,6 +829,20 @@ button {
   gap: 8px;
   flex-wrap: wrap;
 }
+.orch-role-name {
+  width: 150px;
+  font-weight: 600;
+}
+.orch-role-folder {
+  width: 110px;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+.orch-role-task {
+  width: 100%;
+  margin-top: 6px;
+  font-size: 12.5px;
+}
 .panel-head {
   display: flex;
   align-items: center;
