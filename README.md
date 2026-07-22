@@ -30,8 +30,8 @@ browser; nothing is stored by the app), and confines the agent to a single proje
   design), runs them in parallel in their own sub-folders, then integrates and tests the result.
 - Project management: a dashboard to create, open, rename and delete projects, with real conversation
   history and resume, plus automatic restore of your open panels after a restart.
-- Up to four parallel chats, each with its own project, model (Opus 4.8 / Fable 5 / Sonnet 5 / Haiku 4.5)
-  and reasoning effort.
+- Up to ten parallel chats per project, each with its own engine, model (Opus 4.8 / Fable 5 / Sonnet 5 /
+  Haiku 4.5) and reasoning effort.
 - English and Italian interface, light and dark theme.
 - One double-click launcher for macOS and Windows.
 - Local-only server with an anti-CSRF / origin guard, so the agent cannot be reached from other websites

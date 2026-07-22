@@ -178,6 +178,18 @@ export function FileTree() {
 
   const active = tabs.find((t) => t.path === activePath) ?? null;
 
+  // Arrow keys walk the visible rows (Enter/Space already activate the row).
+  const treeRef = useRef<HTMLDivElement>(null);
+  const onTreeKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+    const rows = Array.from(treeRef.current?.querySelectorAll<HTMLButtonElement>(".ft-row") ?? []);
+    if (!rows.length) return;
+    const idx = rows.indexOf(document.activeElement as HTMLButtonElement);
+    const next = e.key === "ArrowDown" ? Math.min(idx + 1, rows.length - 1) : Math.max(idx - 1, 0);
+    rows[next]?.focus();
+    e.preventDefault();
+  };
+
   return (
     <aside className="filetree" onClick={() => menu && setMenu(null)}>
       <div className="filetree-head">
@@ -218,7 +230,7 @@ export function FileTree() {
         )}
       </div>
 
-      <div className="filetree-body">
+      <div className="filetree-body" ref={treeRef} onKeyDown={onTreeKeyDown}>
         {hits !== null ? (
           hits.length === 0 ? (
             <div className="ft-empty">{t("noResults")}</div>
@@ -446,7 +458,7 @@ function NamePrompt({
   const ok = name.trim().length > 0;
   return (
     <div className="modal-backdrop" onClick={onCancel}>
-      <div className="name-prompt" onClick={(e) => e.stopPropagation()}>
+      <div className="name-prompt" role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
         <h3>{title}</h3>
         <input
           className="field-input"
@@ -495,7 +507,7 @@ function EditorModal({
 
   return (
     <div className="modal-backdrop" onClick={onCloseAll}>
-      <div className="editor-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="editor-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div className="editor-tabs">
           {tabs.map((tb) => (
             <button

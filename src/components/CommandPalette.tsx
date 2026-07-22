@@ -61,7 +61,7 @@ export function CommandPalette({
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="command-palette" onClick={(e) => e.stopPropagation()}>
+      <div className="command-palette" role="dialog" aria-modal="true" aria-label={t("commands")} onClick={(e) => e.stopPropagation()}>
         <div className="cmd-head">
           <input
             ref={searchRef}

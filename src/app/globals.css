@@ -2527,3 +2527,184 @@ textarea:focus-visible,
 .empty-emoji .icon {
   color: var(--ink-soft);
 }
+
+/* ---- P6.7 UX polish ---- */
+
+/* Visible keyboard focus everywhere (DS brand ring, no layout shift). */
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+}
+
+/* Header popover: model & reasoning behind one button (defaults over config). */
+.hdr-pop {
+  position: absolute;
+  top: 26px;
+  left: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  min-width: 190px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--ds-radius-md);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
+}
+.hdr-select-full {
+  max-width: none;
+  width: 100%;
+  padding: 5px 6px;
+}
+/* Subtle mark on the tune button when a non-default model/effort is set. */
+.icon-btn-set {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+
+/* Collapsed run of completed tool steps. */
+.tool-group {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: var(--ds-radius-md);
+  padding: 8px 11px;
+}
+.tool-group > summary {
+  cursor: pointer;
+  list-style: none;
+  color: var(--ink-soft);
+}
+.tool-group > summary::-webkit-details-marker {
+  display: none;
+}
+.tool-group[open] > summary {
+  margin-bottom: 8px;
+}
+.tool-group-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Per-panel status bar: passive one-line summary (engine · model · cost · state). */
+.panel-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 12px;
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+  font-size: 11px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.panel-status-sep {
+  opacity: 0.5;
+}
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--ds-radius-full);
+  flex-shrink: 0;
+}
+.status-idle {
+  background: var(--ds-gray-500);
+}
+.status-run {
+  background: var(--amber);
+  animation: pulse 1s infinite;
+}
+.status-wait {
+  background: var(--warn);
+}
+
+/* Toast stack: non-blocking failure notices, bottom-right. */
+.toast-stack {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 340px;
+}
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--warn);
+  border-radius: var(--ds-radius-md);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
+  font-size: 13px;
+}
+.toast-text {
+  flex: 1;
+}
+.toast-close {
+  background: transparent;
+  border: none;
+  color: var(--ink-soft);
+  padding: 2px;
+  line-height: 1;
+}
+.toast-close:hover {
+  color: var(--ink);
+}
+
+/* Keyboard shortcuts help. */
+.shortcuts-modal {
+  max-width: 420px;
+}
+.sc-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.sc-head h2 {
+  margin: 0;
+  font-size: 16px;
+}
+.sc-list {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 20px 18px;
+}
+.sc-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+}
+.sc-row:last-child {
+  border-bottom: none;
+}
+.sc-keys {
+  min-width: 150px;
+  color: var(--ink-soft);
+}
+.sc-plain {
+  font-size: 12px;
+}
+.sc-label {
+  flex: 1;
+}
+.kbd {
+  display: inline-block;
+  padding: 1px 6px;
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: var(--ds-radius-md);
+  background: var(--panel-2);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--ink);
+}

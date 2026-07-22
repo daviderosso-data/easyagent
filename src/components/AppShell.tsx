@@ -13,7 +13,15 @@ const PROFILE_KEY = {
   custom: "profileCustom",
 } as const;
 
-export function AppShell({ onOpenSettings, children }: { onOpenSettings: () => void; children: React.ReactNode }) {
+export function AppShell({
+  onOpenSettings,
+  onOpenHelp,
+  children,
+}: {
+  onOpenSettings: () => void;
+  onOpenHelp: () => void;
+  children: React.ReactNode;
+}) {
   const model = useAgent((s) => s.sessions[s.activePanel]?.model ?? null);
   const apiKeySource = useAgent((s) => s.sessions[s.activePanel]?.apiKeySource ?? null);
   const security = useAgent((s) => s.settings.security);
@@ -54,6 +62,10 @@ export function AppShell({ onOpenSettings, children }: { onOpenSettings: () => v
           </button>
 
           <ThemeToggle />
+
+          <button className="icon-btn" onClick={onOpenHelp} title={t("shortcutsTip")} aria-label={t("shortcutsTip")}>
+            <Icon name="question" size={15} />
+          </button>
 
           <button className="icon-btn" onClick={onOpenSettings} title={t("settings")} aria-label={t("settings")}>
             <Icon name="gear" size={15} />

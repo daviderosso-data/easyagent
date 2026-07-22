@@ -9,7 +9,7 @@ import { autoColor } from "@/lib/panel-colors";
 import { DEFAULT_SETTINGS, PROFILES, detectProfile } from "@/lib/settings";
 import { streamAgent } from "@/lib/sse-client";
 import { clearCommandsCache } from "@/lib/commands-client";
-import { messages } from "@/i18n/messages";
+import { messages, type MsgKey } from "@/i18n/messages";
 
 export type Item =
   | { kind: "user"; id: string; text: string }
@@ -135,6 +135,12 @@ export const MAX_PANELS = 10;
 
 export type ViewMode = "split" | "tabs";
 
+/** Non-blocking notice shown in the corner stack (auto-dismissed). */
+export interface Toast {
+  id: number;
+  message: string;
+}
+
 interface AppState {
   sessions: Record<string, Session>;
   panels: string[];
@@ -154,8 +160,18 @@ interface AppState {
   /** Bumped when files change outside the editor (e.g. save-point restore) so
    *  the tree and open tabs reload from disk. */
   fsRefresh: number;
+  /** Panel temporarily expanded to fill the split grid ("" = none). Ephemeral. */
+  focusPanel: string;
+  /** Failures the user should know about but that must not block them. */
+  toasts: Toast[];
+  /** Set by the global Cmd/Ctrl+K shortcut; the active panel's composer reacts. */
+  paletteRequest: { panelId: string; nonce: number } | null;
 
   setToken: (t: string) => void;
+  setFocusPanel: (id: string) => void;
+  pushToast: (key: MsgKey) => void;
+  dismissToast: (id: number) => void;
+  requestPalette: () => void;
   setLang: (l: Lang) => void;
   setTheme: (t: Theme) => void;
   applySettings: (s: AppSettings) => void;
@@ -196,6 +212,7 @@ interface AppState {
 
 let counter = 0;
 const nid = () => `i${Date.now()}_${counter++}`;
+let toastCounter = 0;
 let panelCounter = 0;
 const pid = () => `p${Date.now()}_${panelCounter++}`;
 
@@ -221,9 +238,10 @@ function authHeaders(token: string | null): Record<string, string> {
 
 async function persist(settings: AppSettings, token: string | null) {
   try {
-    await fetch("/api/settings", { method: "PUT", headers: authHeaders(token), body: JSON.stringify(settings) });
+    const r = await fetch("/api/settings", { method: "PUT", headers: authHeaders(token), body: JSON.stringify(settings) });
+    if (!r.ok) useAgent.getState().pushToast("toastSettingsSave");
   } catch {
-    /* ignore */
+    useAgent.getState().pushToast("toastSettingsSave");
   }
 }
 
@@ -240,17 +258,40 @@ export const useAgent = create<AppState>((set, get) => ({
   activeProject: "",
   viewMode: "split",
   fsRefresh: 0,
+  focusPanel: "",
+  toasts: [],
+  paletteRequest: null,
 
   setToken: (token) => set({ token }),
+
+  setFocusPanel: (id) => set({ focusPanel: id }),
+
+  pushToast: (key) => {
+    const message = messages[get().lang][key] ?? messages.en[key];
+    // One notice per problem: an identical toast already on screen is enough.
+    if (get().toasts.some((t) => t.message === message)) return;
+    const id = ++toastCounter;
+    set((s) => ({ toasts: [...s.toasts, { id, message }] }));
+    setTimeout(() => get().dismissToast(id), 6000);
+  },
+
+  dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
+
+  requestPalette: () =>
+    set((s) => ({ paletteRequest: { panelId: s.activePanel, nonce: (s.paletteRequest?.nonce ?? 0) + 1 } })),
 
   loadProviders: async () => {
     try {
       const r = await fetch("/api/providers", { headers: authHeaders(get().token) });
-      if (!r.ok) return;
+      if (!r.ok) {
+        get().pushToast("toastProviders");
+        return;
+      }
       const d = await r.json();
       if (Array.isArray(d.providers) && d.providers.length) set({ providers: d.providers });
     } catch {
-      /* engines dropdown falls back to Claude-only */
+      // Engines dropdown falls back to Claude-only — say so instead of hiding it.
+      get().pushToast("toastProviders");
     }
   },
 
@@ -277,13 +318,16 @@ export const useAgent = create<AppState>((set, get) => ({
         headers: authHeaders(get().token),
         body: JSON.stringify({ cwd: s.cwd }),
       });
-      if (!r.ok) return;
+      if (!r.ok) {
+        get().pushToast("toastPreview");
+        return;
+      }
       const info = (await r.json()) as PreviewInfo;
       // Nothing to preview (no index.html, no dev script) → friendly error state.
       if (info.kind === "none") applyPreview(id, { state: "error", error: "none" });
       else applyPreview(id, info);
     } catch {
-      /* ignore */
+      get().pushToast("toastPreview");
     }
   },
 
@@ -368,6 +412,7 @@ export const useAgent = create<AppState>((set, get) => ({
       sessions: nextSessions,
       panels: rest,
       activePanel: activePanel === id ? siblings.filter((p) => p !== id)[0] : activePanel,
+      ...(get().focusPanel === id ? { focusPanel: "" } : {}),
     });
     scheduleSaveWorkspace();
   },
@@ -390,6 +435,7 @@ export const useAgent = create<AppState>((set, get) => ({
       const keep = mine.includes(activePanel) ? activePanel : mine[0];
       set({ activeProject: path, activePanel: keep });
     }
+    if (get().focusPanel) set({ focusPanel: "" });
     scheduleSaveWorkspace();
   },
 
@@ -412,7 +458,7 @@ export const useAgent = create<AppState>((set, get) => ({
     for (const p of rest) nextSessions[p] = st.sessions[p];
     const openProjects = st.openProjects.filter((p) => p !== path);
     const activeProject = st.activeProject === path ? (openProjects[0] ?? "") : st.activeProject;
-    set({ sessions: nextSessions, panels: rest, openProjects, activeProject });
+    set({ sessions: nextSessions, panels: rest, openProjects, activeProject, focusPanel: "" });
     if (activeProject) {
       get().activateProject(activeProject);
     } else {
@@ -424,7 +470,7 @@ export const useAgent = create<AppState>((set, get) => ({
   },
 
   setViewMode: (m) => {
-    set({ viewMode: m });
+    set({ viewMode: m, focusPanel: "" });
     scheduleSaveWorkspace();
   },
 
@@ -622,7 +668,7 @@ export const useAgent = create<AppState>((set, get) => ({
       }).then((r) => r.json());
       if (Array.isArray(d.items)) updateSession(id, (s) => ({ ...s, items: d.items }));
     } catch {
-      /* ignore */
+      get().pushToast("toastHistory");
     }
   },
 
@@ -766,6 +812,9 @@ export const useAgent = create<AppState>((set, get) => ({
     }
     if (settled) {
       updateSession(id, (s) => ({ ...s, pending: s.pending.filter((p) => p.approvalId !== pending.approvalId) }));
+    } else {
+      // The modal stays so the user can retry — tell them why nothing happened.
+      get().pushToast("toastApprove");
     }
   },
 }));
@@ -815,7 +864,7 @@ function loadItemsInto(panelId: string, sessionId: string, token: string | null)
     .then((d) => {
       if (Array.isArray(d.items) && d.items.length) updateSession(panelId, (s) => ({ ...s, items: d.items }));
     })
-    .catch(() => {});
+    .catch(() => useAgent.getState().pushToast("toastHistory"));
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -849,7 +898,7 @@ function scheduleSaveWorkspace() {
         activeProject: st.activeProject,
         viewMode: st.viewMode,
       }),
-    }).catch(() => {});
+    }).catch(() => useAgent.getState().pushToast("toastWorkspaceSave"));
   }, 800);
 }
 
