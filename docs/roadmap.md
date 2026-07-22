@@ -1,9 +1,18 @@
 # Roadmap
 
-Phases P1–P6.7 are shipped (see git history for details). This file tracks what
+Phases P1–P6.8 are shipped (see git history for details). This file tracks what
 comes next. Decisions recorded here were made by the owner on 2026-07-22.
 
-## P6.8 — Product features (planned, not started)
+## P6.8 — Attachments + orchestrator advisor (shipped)
+
+Owner request 2026-07-22: upload PDF / Markdown / images directly in chat —
+saved into `<project>/attachments/` and referenced in the prompt — and in the
+orchestrator modal as shared reference material (staged, then moved into
+`<project>/reference/` on launch). The orchestrator also recommends useful
+marketplace skills (installable on launch) and MCP connectors (one-click for
+local presets) based on the plan.
+
+## P6.9 — Product features (planned, not started)
 
 Ordered by value/effort. All must respect the standing UX rules: one action →
 one entry point, plain language, defaults over config.

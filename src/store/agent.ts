@@ -129,6 +129,10 @@ export interface OrchPlanInput {
   projectName: string;
   brief: string;
   roles: { role: string; folder: string; task: string; provider?: string; model?: string | null }[];
+  /** Staged reference uploads, moved into <project>/reference/ on launch. */
+  stagingId?: string;
+  /** Marketplace skills the user kept selected in the plan review. */
+  installSkills?: { source: string; skillId: string }[];
 }
 
 export const MAX_PANELS = 10;
@@ -553,7 +557,13 @@ export const useAgent = create<AppState>((set, get) => ({
         orch: { ...IDLE_ORCH, active: true, phase: "working", orchestratorPanel: orch.id, rolePanels, round: 1, projectName, projectRoot },
       });
     }
-    pushAssistant(orch.id, `Project "${projectName}" created.\n\n${brief}\n\nDispatching ${roleData.length} agents…`);
+    {
+      const skillsOk = Array.isArray(res.installedSkills)
+        ? (res.installedSkills as { skillId: string; ok: boolean }[]).filter((s) => s.ok).map((s) => s.skillId)
+        : [];
+      const extras = skillsOk.length ? `\n\nSkills installed: ${skillsOk.join(", ")}.` : "";
+      pushAssistant(orch.id, `Project "${projectName}" created.\n\n${brief}${extras}\n\nDispatching ${roleData.length} agents…`);
+    }
 
     // 3) Round loop: roles work → orchestrator reviews → done or dispatch fixes.
     const cancelled = () => get().orch.cancelRequested;

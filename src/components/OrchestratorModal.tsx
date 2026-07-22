@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useAgent } from "@/store/agent";
 import { useT } from "@/i18n";
+import { apiUpload } from "@/lib/fs-client";
+import { addUploadFiles, readExcerpts, UPLOAD_ACCEPT, type UploadReject } from "@/lib/uploads";
 import { Icon } from "@/components/icons";
 
 interface PlanRole {
@@ -23,6 +25,20 @@ interface EngineOpt {
   label: string;
   models: (string | null)[];
 }
+interface SuggestedSkill {
+  id: string;
+  skillId: string;
+  name: string;
+  installs: number;
+  source: string;
+}
+interface SuggestedMcp {
+  name: string;
+  reason: string;
+  requiresToken: boolean;
+}
+
+const REJECT_TOAST = { type: "toastFileType", big: "toastFileTooBig", many: "toastTooManyFiles" } as const;
 
 // Plan-first flow: the orchestrator drafts brief + agents + engine/model
 // assignments and asks structure questions; nothing runs until the user
@@ -31,6 +47,7 @@ export function OrchestratorModal({ onClose }: { onClose: () => void }) {
   const t = useT();
   const token = useAgent((s) => s.token);
   const runOrchestration = useAgent((s) => s.runOrchestration);
+  const pushToast = useAgent((s) => s.pushToast);
   const [goal, setGoal] = useState("");
   const [plan, setPlan] = useState<Plan | null>(null);
   const [engines, setEngines] = useState<EngineOpt[]>([]);
@@ -38,26 +55,40 @@ export function OrchestratorModal({ onClose }: { onClose: () => void }) {
   const [extra, setExtra] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [refFiles, setRefFiles] = useState<File[]>([]);
+  const [skills, setSkills] = useState<SuggestedSkill[]>([]);
+  const [selSkills, setSelSkills] = useState<Set<string>>(new Set());
+  const [mcps, setMcps] = useState<SuggestedMcp[]>([]);
+  const [mcpState, setMcpState] = useState<Record<string, "adding" | "added" | "error">>({});
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const headers = (): Record<string, string> => ({
     "content-type": "application/json",
     ...(token ? { "x-ccw-token": token } : {}),
   });
 
+  const addFiles = (incoming: Iterable<File>) =>
+    setRefFiles((cur) => addUploadFiles(cur, incoming, (why: UploadReject) => pushToast(REJECT_TOAST[why])));
+
   const fetchPlan = async (ans?: string) => {
     setBusy(true);
     setError("");
     try {
+      const references = refFiles.length ? await readExcerpts(refFiles) : undefined;
       const r = await fetch("/api/orchestrate/plan", {
         method: "POST",
         headers: headers(),
-        body: JSON.stringify({ goal: goal.trim(), ...(ans ? { answers: ans } : {}) }),
+        body: JSON.stringify({ goal: goal.trim(), ...(ans ? { answers: ans } : {}), ...(references ? { references } : {}) }),
       });
       const d = await r.json();
       if (d?.ok && d.plan) {
         setPlan(d.plan);
         setEngines(Array.isArray(d.engines) ? d.engines : []);
         setAnswers(new Array((d.plan.questions ?? []).length).fill(""));
+        const sk: SuggestedSkill[] = Array.isArray(d.suggestedSkills) ? d.suggestedSkills : [];
+        setSkills(sk);
+        setSelSkills(new Set(sk.map((s) => s.id)));
+        setMcps(Array.isArray(d.connectors) ? d.connectors : []);
       } else {
         setError(d?.error || t("orchPlanFailed"));
       }
@@ -65,6 +96,17 @@ export function OrchestratorModal({ onClose }: { onClose: () => void }) {
       setError(t("serverUnreachable"));
     }
     setBusy(false);
+  };
+
+  const addMcpPreset = async (name: string) => {
+    setMcpState((m) => ({ ...m, [name]: "adding" }));
+    try {
+      const r = await fetch("/api/mcp", { method: "POST", headers: headers(), body: JSON.stringify({ preset: name }) });
+      const d = await r.json();
+      setMcpState((m) => ({ ...m, [name]: d?.ok ? "added" : "error" }));
+    } catch {
+      setMcpState((m) => ({ ...m, [name]: "error" }));
+    }
   };
 
   const refine = () => {
@@ -81,10 +123,32 @@ export function OrchestratorModal({ onClose }: { onClose: () => void }) {
     setPlan((p) => (p ? { ...p, roles: p.roles.map((r, j) => (j === i ? { ...r, ...patch } : r)) } : p));
   };
 
-  const launch = () => {
+  const launch = async () => {
     if (!plan) return;
+    // Stage the reference files first: the project folder does not exist yet,
+    // /api/orchestrate moves them into <project>/reference/ on creation.
+    let stagingId: string | undefined;
+    if (refFiles.length) {
+      setBusy(true);
+      const up = await apiUpload(refFiles, token, { staging: true });
+      setBusy(false);
+      if (!up.ok || !up.stagingId) {
+        pushToast("toastUpload");
+        return;
+      }
+      stagingId = up.stagingId;
+    }
+    const installSkills = skills
+      .filter((s) => selSkills.has(s.id))
+      .map((s) => ({ source: s.source, skillId: s.skillId }));
     onClose();
-    void runOrchestration(goal.trim(), { projectName: plan.projectName, brief: plan.brief, roles: plan.roles });
+    void runOrchestration(goal.trim(), {
+      projectName: plan.projectName,
+      brief: plan.brief,
+      roles: plan.roles,
+      ...(stagingId ? { stagingId } : {}),
+      ...(installSkills.length ? { installSkills } : {}),
+    });
   };
 
   return (
@@ -111,6 +175,36 @@ export function OrchestratorModal({ onClose }: { onClose: () => void }) {
                 value={goal}
                 onChange={(e) => setGoal(e.target.value)}
               />
+              <div className="orch-attach-row">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  hidden
+                  multiple
+                  accept={UPLOAD_ACCEPT}
+                  onChange={(e) => {
+                    if (e.target.files) addFiles(e.target.files);
+                    e.target.value = "";
+                  }}
+                />
+                <button className="icon-btn icon-btn-sm" title={t("attachTip")} aria-label={t("attachTip")} onClick={() => fileInputRef.current?.click()}>
+                  <Icon name="paperclip" size={13} /> {t("orchRefTitle")}
+                </button>
+                <span className="orch-ref-hint">{t("orchRefHint")}</span>
+              </div>
+              {refFiles.length > 0 && (
+                <div className="attach-chips">
+                  {refFiles.map((f) => (
+                    <span className="attach-chip" key={f.name + f.size}>
+                      <Icon name="file" size={11} />
+                      <span className="attach-chip-name">{f.name}</span>
+                      <button className="attach-chip-x" aria-label={t("close")} onClick={() => setRefFiles((cur) => cur.filter((x) => x !== f))}>
+                        <Icon name="x" size={10} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
               {error && <p className="orch-exp-note">⚠️ {error}</p>}
               <div className="modal-actions">
                 <button className="btn btn-ghost" onClick={onClose}>
@@ -241,6 +335,69 @@ export function OrchestratorModal({ onClose }: { onClose: () => void }) {
                 </button>
               )}
 
+              {refFiles.length > 0 && (
+                <>
+                  <h3><Icon name="paperclip" size={13} /> {t("orchRefTitle")}</h3>
+                  <div className="attach-chips">
+                    {refFiles.map((f) => (
+                      <span className="attach-chip" key={f.name + f.size}>
+                        <Icon name="file" size={11} />
+                        <span className="attach-chip-name">{f.name}</span>
+                      </span>
+                    ))}
+                  </div>
+                  <p className="settings-sub">{t("orchRefHint")}</p>
+                </>
+              )}
+
+              {(skills.length > 0 || mcps.length > 0) && (
+                <>
+                  <h3><Icon name="sparkles" size={14} /> {t("orchSuggestTitle")}</h3>
+                  {skills.map((s) => (
+                    <label className="orch-suggest" key={s.id}>
+                      <input
+                        type="checkbox"
+                        checked={selSkills.has(s.id)}
+                        onChange={(e) =>
+                          setSelSkills((cur) => {
+                            const next = new Set(cur);
+                            if (e.target.checked) next.add(s.id);
+                            else next.delete(s.id);
+                            return next;
+                          })
+                        }
+                      />
+                      <span className="orch-suggest-name">{s.name}</span>
+                      <span className="orch-suggest-meta">
+                        {s.installs > 0 ? `${s.installs} ${t("installsLbl")} · ` : ""}
+                        {t("orchSkillInstall")}
+                      </span>
+                    </label>
+                  ))}
+                  {mcps.map((m) => (
+                    <div className="orch-suggest" key={m.name}>
+                      <Icon name="plug" size={13} />
+                      <span className="orch-suggest-name">{m.name}</span>
+                      <span className="orch-suggest-meta">{m.reason}</span>
+                      <span className="panel-head-spacer" />
+                      {m.requiresToken ? (
+                        <span className="orch-suggest-meta">{t("orchMcpOpenConn")}</span>
+                      ) : mcpState[m.name] === "added" ? (
+                        <span className="orch-suggest-meta"><Icon name="check" size={12} /> {t("orchMcpAdded")}</span>
+                      ) : (
+                        <button
+                          className="btn btn-soft btn-sm"
+                          disabled={mcpState[m.name] === "adding"}
+                          onClick={() => void addMcpPreset(m.name)}
+                        >
+                          {mcpState[m.name] === "error" ? t("orchMcpRetry") : t("orchMcpAdd")}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </>
+              )}
+
               {error && <p className="orch-exp-note">⚠️ {error}</p>}
               <div className="modal-actions">
                 <button className="btn btn-ghost" onClick={() => setPlan(null)} disabled={busy}>
@@ -251,7 +408,7 @@ export function OrchestratorModal({ onClose }: { onClose: () => void }) {
                 </button>
                 <button
                   className="btn btn-primary"
-                  onClick={launch}
+                  onClick={() => void launch()}
                   disabled={busy || plan.roles.some((r) => !r.role.trim() || !r.folder.trim() || !r.task.trim())}
                 >
                   ▸ {t("startOrchestration")}

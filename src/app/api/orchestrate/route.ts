@@ -5,9 +5,11 @@ import { createProject, createProjectFolder, writeProjectFile } from "@/server/p
 import { markOrchestrated } from "@/server/project-registry";
 import { orchestrationGrants } from "@/server/orchestration-grants";
 import { getProvider } from "@/server/providers";
+import { consumeStaging } from "@/server/fs-upload";
+import { installSkillFromMarket } from "@/server/marketplace";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 240; // skill installs clone their source repos
 
 // Launch a REVIEWED plan (produced by /api/orchestrate/plan and confirmed by
 // the user): create the project + role folders + plan files and mint the
@@ -29,6 +31,16 @@ const BodySchema = z.object({
       )
       .min(1)
       .max(6),
+    /** Staged uploads from the modal, moved into <project>/reference/. */
+    stagingId: z
+      .string()
+      .regex(/^[a-f0-9]{16,64}$/)
+      .optional(),
+    /** Marketplace skills the user kept checked in the plan review. */
+    installSkills: z
+      .array(z.object({ source: z.string().min(3).max(180), skillId: z.string().min(1).max(64) }))
+      .max(4)
+      .optional(),
   }),
 });
 
@@ -54,6 +66,29 @@ export async function POST(req: Request) {
   if (!proj.ok || !proj.path || !proj.name) return Response.json({ ok: false, error: "Could not create the project folder" });
   markOrchestrated(proj.name, plan.projectName);
 
+  // Attached reference files: move them out of staging into the project so
+  // every role can read them. A shared note goes into the brief.
+  let referenceFiles: string[] = [];
+  if (plan.stagingId) referenceFiles = consumeStaging(plan.stagingId, proj.path).files;
+  const brief = referenceFiles.length
+    ? `${plan.brief}\n\nReference files provided by the user are in the "reference/" folder at the project root:\n` +
+      referenceFiles.map((f) => `- ${f}`).join("\n") +
+      `\nRead the ones relevant to your role and follow them.`
+    : plan.brief;
+
+  // Install the marketplace skills the user kept selected (best-effort — a
+  // failed install must not sink the launch).
+  const installedSkills: { skillId: string; ok: boolean }[] = await Promise.all(
+    (plan.installSkills ?? []).map(async (s) => {
+      try {
+        const r = await installSkillFromMarket(proj.path!, s.source, s.skillId);
+        return { skillId: s.skillId, ok: !!r.ok };
+      } catch {
+        return { skillId: s.skillId, ok: false };
+      }
+    }),
+  );
+
   // One subfolder per role inside the new project.
   const roles = plan.roles.map((r) => {
     const mk = createProjectFolder(proj.path!, r.folder);
@@ -73,12 +108,15 @@ export async function POST(req: Request) {
     "",
     "## Shared brief",
     "",
-    plan.brief,
+    brief,
     "",
     "## Roles",
     "",
     ...roles.map((r) => `- **${r.role}** (\`${r.folder.split("/").pop()}\`, ${r.provider ?? "claude"}${r.model ? ` / ${r.model}` : ""}): ${r.task}`),
     "",
+    ...(installedSkills.some((s) => s.ok)
+      ? ["## Skills", "", ...installedSkills.filter((s) => s.ok).map((s) => `- ${s.skillId} (in .claude/skills/)`), ""]
+      : []),
     "## Status",
     "",
     "_Agents append their DONE summaries below._",
@@ -91,8 +129,10 @@ export async function POST(req: Request) {
     ok: true,
     projectRoot: proj.path,
     projectName: proj.name,
-    brief: plan.brief,
+    brief,
     roles,
+    referenceFiles,
+    installedSkills,
     // Lets this orchestration's turns use the autonomous-but-safe config;
     // scoped to the project just created and time-limited.
     grant: orchestrationGrants.mint(proj.path),
