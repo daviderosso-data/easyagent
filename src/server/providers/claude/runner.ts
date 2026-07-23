@@ -17,9 +17,8 @@ import type { TurnRequest } from "@/server/providers/types";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 /** OS sandbox: confines Bash writes to cwd and denies secret reads. macOS uses
- *  built-in Seatbelt; Windows unsupported → null (hook+deny+classifier still apply). */
-export function buildSandboxConfig(): Record<string, unknown> | null {
-  if (process.platform === "win32") return null;
+ *  built-in Seatbelt; Linux uses bubblewrap when available. */
+export function buildSandboxConfig(): Record<string, unknown> {
   return {
     enabled: true,
     failIfUnavailable: false,

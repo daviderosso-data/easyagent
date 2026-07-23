@@ -22,9 +22,6 @@ const ENV_ALLOW = new Set<string>([
   "PATH", "HOME", "USER", "LOGNAME", "SHELL", "LANG", "LC_ALL", "LC_CTYPE",
   "LC_MESSAGES", "TERM", "COLORTERM", "TMPDIR", "TMP", "TEMP", "TZ", "PWD", "HOSTNAME",
   "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME",
-  // Windows essentials
-  "USERPROFILE", "HOMEDRIVE", "HOMEPATH", "APPDATA", "LOCALAPPDATA",
-  "SystemRoot", "SystemDrive", "windir", "COMSPEC", "PATHEXT", "NUMBER_OF_PROCESSORS",
 ]);
 
 export function buildAgentEnv(): Record<string, string> {

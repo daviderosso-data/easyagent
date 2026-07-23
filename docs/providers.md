@@ -42,8 +42,8 @@ earlier mapping. Ambient API keys are scrubbed from every engine subprocess
 
 P6.1 (same-day fixes after first real use): engine-neutral UI strings (no
 company/model names in panel chrome, welcome, working/reasoning labels);
-Codex model picker (`gpt-5.5`, `gpt-5.4` — ids verified live against a
-ChatGPT account, no list command exists) and reasoning effort via
+Codex model picker (`gpt-5.6-sol/-terra/-luna`, `gpt-5.5`, `gpt-5.4` — ids
+verified live against a ChatGPT account, no list command exists) and reasoning effort via
 `-c model_reasoning_effort` (xhigh verified; our "max" folds into xhigh);
 Grok model list parsed from `grok models` (works pre-login); the Ollama
 tool loop above, verified live end-to-end including the approval path

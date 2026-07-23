@@ -257,9 +257,13 @@ export async function codexStatus(): Promise<EngineStatus> {
 
 export async function codexModels(): Promise<ProviderModel[]> {
   // No list command exists; these ids were verified live against a ChatGPT
-  // account (2026-07-21): unknown ids fail the turn with a 400.
+  // account (5.5/5.4 on 2026-07-21, the 5.6 family on 2026-07-23): unknown
+  // ids fail the turn with a 400.
   return [
     { id: null, label: "Default" },
+    { id: "gpt-5.6-sol", label: "GPT-5.6 Sol" },
+    { id: "gpt-5.6-terra", label: "GPT-5.6 Terra" },
+    { id: "gpt-5.6-luna", label: "GPT-5.6 Luna" },
     { id: "gpt-5.5", label: "GPT-5.5" },
     { id: "gpt-5.4", label: "GPT-5.4" },
   ];

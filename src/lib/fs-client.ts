@@ -111,6 +111,34 @@ export async function apiDelete(path: string, token: string | null): Promise<Mut
   return postJson("/api/fs/delete", { path }, token, { ok: false });
 }
 
+export interface UploadResult {
+  ok: boolean;
+  files?: { name: string; rel?: string }[];
+  stagingId?: string;
+  error?: string;
+  file?: string;
+}
+
+/** Upload files into <cwd>/attachments/ — or, with staging, into the server
+ *  staging area for a project that does not exist yet (orchestrator flow). */
+export async function apiUpload(
+  files: File[],
+  token: string | null,
+  opts: { cwd?: string; staging?: boolean },
+): Promise<UploadResult> {
+  const fd = new FormData();
+  if (opts.staging) fd.set("staging", "1");
+  else fd.set("cwd", opts.cwd ?? "");
+  for (const f of files) fd.append("files", f, f.name);
+  try {
+    // No content-type header: the browser sets the multipart boundary itself.
+    const r = await fetch("/api/fs/upload", { method: "POST", headers: headers(token), body: fd });
+    return await r.json();
+  } catch {
+    return { ok: false };
+  }
+}
+
 export async function apiSearch(root: string, q: string, token: string | null): Promise<SearchResult> {
   try {
     const r = await fetch(`/api/fs/search?root=${encodeURIComponent(root)}&q=${encodeURIComponent(q)}`, {

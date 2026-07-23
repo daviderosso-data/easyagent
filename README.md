@@ -23,9 +23,8 @@ browser; nothing is stored by the app), and confines the agent to a single proje
 ## Features
 
 - Full Claude Code agent with a visual UI: streaming activity, file tree, diffs, command output.
-- Three security profiles (Locked / Standard / Open) with an OS-level sandbox (macOS), a deny-list for
-  destructive commands, secret-file protection, and per-command confirmations. On Windows there is no OS
-  sandbox: enforcement relies on the command filter and deny rules.
+- Three security profiles (Locked / Standard / Open) with an OS-level sandbox, a deny-list for
+  destructive commands, secret-file protection, and per-command confirmations.
 - Multi-agent orchestrator: describe a goal and it splits the work into roles (e.g. backend, frontend,
   design), runs them in parallel in their own sub-folders, then integrates and tests the result.
 - Project management: a dashboard to create, open, rename and delete projects, with real conversation
@@ -33,12 +32,13 @@ browser; nothing is stored by the app), and confines the agent to a single proje
 - Up to ten parallel chats per project, each with its own engine, model (Opus 4.8 / Fable 5 / Sonnet 5 /
   Haiku 4.5) and reasoning effort.
 - English and Italian interface, light and dark theme.
-- One double-click launcher for macOS and Windows.
+- One double-click launcher for macOS.
 - Local-only server with an anti-CSRF / origin guard, so the agent cannot be reached from other websites
   or from the network.
 
 ## Requirements
 
+- macOS or Linux (Windows is not supported).
 - [Node.js](https://nodejs.org) 20.9 or newer.
 - [Claude Code](https://claude.com/claude-code) installed and signed in with your Claude subscription
   (Pro/Max). You can sign in from inside the app (Settings → Account); easyagent reuses Claude Code's own
@@ -46,10 +46,7 @@ browser; nothing is stored by the app), and confines the agent to a single proje
 
 ## Quick start
 
-Double-click the launcher for your platform:
-
-- macOS: `launch.command`
-- Windows: `launch.bat`
+On macOS, double-click `launch.command` (on Linux, use the manual start below).
 
 On the first run it installs dependencies and builds the app, then starts the local server and opens your
 browser at `http://127.0.0.1:3000`. Close the terminal window to stop it.
@@ -63,7 +60,7 @@ npm run dev        # development, at http://127.0.0.1:3000
 npm run build && npm start
 ```
 
-Quality checks (also run in CI on macOS and Windows):
+Quality checks (also run in CI on macOS and Linux):
 
 ```bash
 npm run typecheck  # tsc --noEmit
@@ -85,7 +82,7 @@ Everything is configurable in Settings → Security. Three presets, each tweakab
 | Standard | Same hard blocks and sandbox, but installs and internet ask a normal yes/no and file edits apply automatically. |
 | Open | No limits and no confirmations (behind a warning). Full freedom, full risk. |
 
-In Locked and Standard the hard gates (block-list, PreToolUse hook, OS sandbox on macOS) cannot be
+In Locked and Standard the hard gates (block-list, PreToolUse hook, OS sandbox) cannot be
 bypassed by the agent, even in autonomous mode. **Open disables all of them by design** — it really means
 full freedom. Multi-agent orchestration runs always keep a safety floor regardless of profile: sandbox on,
 catastrophic commands and secret reads blocked.
@@ -98,7 +95,7 @@ catastrophic commands and secret reads blocked.
   strips API-key environment variables so turns use your subscription.
 - In Locked and Standard the agent is confined to `~/easyagent` and cannot read your secrets (`~/.ssh`,
   `~/.aws`, `.env`, `.netrc`, `.npmrc`, …). Your sensitive environment variables are never passed to the
-  agent. On macOS this is enforced by the OS sandbox too; on Windows by the command filter and deny rules.
+  agent. The OS sandbox enforces this too (Seatbelt on macOS, bubblewrap on Linux when available).
 
 ## How it works
 

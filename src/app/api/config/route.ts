@@ -14,6 +14,6 @@ export function GET() {
   return Response.json({
     defaultCwd,
     projectsRoot: PROJECTS_ROOT,
-    sandboxSupported: process.platform !== "win32",
+    sandboxSupported: true,
   });
 }

@@ -20,7 +20,17 @@ export interface OrchestratorPlan {
   /** Short, specific structure questions for the user to confirm before launch. */
   questions?: string[];
   roles?: PlannedRole[];
+  /** Marketplace search keywords for skills that would help this project. */
+  skillSearch?: string[];
+  /** Recommended MCP connectors (validated against the preset ids upstream). */
+  connectors?: { name: string; reason: string }[];
   error?: string;
+}
+
+/** A reference file the user attached in the modal (name + optional excerpt). */
+export interface PlanReference {
+  name: string;
+  excerpt?: string;
 }
 
 /** One available engine as offered to the planner. */
@@ -42,7 +52,19 @@ function engineCatalogue(engines: EngineOption[]): string {
     .join("\n");
 }
 
-function planInstructions(engines: EngineOption[]): string {
+function referenceSection(references: PlanReference[] | undefined): string {
+  if (!references?.length) return "";
+  const lines = references
+    .slice(0, 8)
+    .map((r) => `- ${r.name}${r.excerpt ? `\n  Excerpt:\n  ${r.excerpt.slice(0, 3000).replace(/\n/g, "\n  ")}` : ""}`)
+    .join("\n");
+  return (
+    `\nREFERENCE FILES the user attached. They will be available to every agent in the "reference/" folder at ` +
+    `the project root — factor them into the brief and the role tasks, and tell the roles to read the relevant ones:\n${lines}\n`
+  );
+}
+
+function planInstructions(engines: EngineOption[], references?: PlanReference[]): string {
   return `You are the ORCHESTRATOR of a new software project. The user gives a goal.
 Design the project and split the work into 2 to 6 specialized roles that fit THIS goal (e.g. Backend,
 Frontend, Database, Design, Copy, Tests/QA, Docs — whatever actually fits). Use the SMALLEST team that
@@ -63,10 +85,18 @@ specific model is clearly better.
 Also write up to 4 SHORT, specific QUESTIONS about structural choices that are genuinely ambiguous in the
 goal (stack, data shape, pages, integrations, target platform). No filler questions. If the goal is fully
 clear, return an empty questions array.
+${referenceSection(references)}
+RECOMMENDATIONS. Also suggest, only when genuinely useful for THIS project (empty arrays are fine):
+- "skillSearch": up to 3 short English search keywords (1-3 words each) for an agent-skill marketplace,
+  naming capabilities that would concretely help the roles (e.g. "excel automation", "stripe payments").
+- "connectors": up to 2 recommended connectors chosen ONLY from this list, each with a one-sentence reason:
+  "chrome" (drive a real browser: live testing, scraping), "github" (work with GitHub repos/PRs/issues),
+  "filesystem" (read/write files outside the project folder), "memory" (persistent memory across sessions).
 
 Output ONLY a single JSON object — no explanation, no markdown fences — exactly in this shape:
 {"projectName":"<short name>","brief":"<shared context>","questions":["<q1>","<q2>"],
-"roles":[{"role":"Backend","folder":"server","task":"<what to build>","provider":"claude","model":null}]}`;
+"roles":[{"role":"Backend","folder":"server","task":"<what to build>","provider":"claude","model":null}],
+"skillSearch":["<keyword>"],"connectors":[{"name":"chrome","reason":"<why>"}]}`;
 }
 
 export function extractJson(text: string): any | null {
@@ -101,12 +131,29 @@ export function parsePlan(text: string, engines: EngineOption[]): OrchestratorPl
   const questions = Array.isArray(parsed.questions)
     ? parsed.questions.filter((q: any) => typeof q === "string" && q.trim()).slice(0, 4)
     : [];
+  const skillSearch = Array.isArray(parsed.skillSearch)
+    ? parsed.skillSearch
+        .filter((q: any) => typeof q === "string" && q.trim())
+        .map((q: any) => String(q).trim().slice(0, 60))
+        .slice(0, 3)
+    : [];
+  const connectors = Array.isArray(parsed.connectors)
+    ? parsed.connectors
+        .filter((c: any) => c && typeof c.name === "string" && /^[a-z0-9-]{2,30}$/.test(c.name.trim().toLowerCase()))
+        .map((c: any) => ({
+          name: String(c.name).trim().toLowerCase(),
+          reason: typeof c.reason === "string" ? c.reason.slice(0, 200) : "",
+        }))
+        .slice(0, 2)
+    : [];
   return {
     ok: true,
     projectName: String(parsed.projectName ?? "project"),
     brief: String(parsed.brief ?? ""),
     questions,
     roles,
+    skillSearch,
+    connectors,
   };
 }
 
@@ -117,6 +164,7 @@ export async function planOrchestration(
   answers: string | undefined,
   engines: EngineOption[],
   cwd: string,
+  references?: PlanReference[],
 ): Promise<OrchestratorPlan> {
   let resultText = "";
   const prompt =
@@ -136,7 +184,7 @@ export async function planOrchestration(
         permissionMode: "dontAsk",
         maxTurns: 4,
         settingSources: [],
-        systemPrompt: { type: "preset", preset: "claude_code", append: planInstructions(engines) },
+        systemPrompt: { type: "preset", preset: "claude_code", append: planInstructions(engines, references) },
         env: buildAgentEnv(),
       } as any,
     });

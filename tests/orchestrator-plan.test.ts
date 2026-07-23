@@ -59,4 +59,35 @@ describe("parsePlan", () => {
     expect(parsePlan("no json here", ENGINES).ok).toBe(false);
     expect(parsePlan(planText({ roles: [] }), ENGINES).ok).toBe(false);
   });
+
+  it("passes through capped skill keywords and connector suggestions", () => {
+    const p = parsePlan(
+      planText({
+        skillSearch: ["excel automation", "stripe", "c", "d"],
+        connectors: [
+          { name: "Chrome", reason: "live testing" },
+          { name: "github", reason: "PRs" },
+          { name: "also-dropped", reason: "over the cap" },
+        ],
+      }),
+      ENGINES,
+    );
+    expect(p.skillSearch).toEqual(["excel automation", "stripe", "c"]);
+    expect(p.connectors).toEqual([
+      { name: "chrome", reason: "live testing" },
+      { name: "github", reason: "PRs" },
+    ]);
+  });
+
+  it("defaults suggestions to empty arrays and drops junk entries", () => {
+    const p = parsePlan(planText(), ENGINES);
+    expect(p.skillSearch).toEqual([]);
+    expect(p.connectors).toEqual([]);
+    const junk = parsePlan(
+      planText({ skillSearch: [42, ""], connectors: [{ name: "bad name!", reason: "x" }, "junk"] }),
+      ENGINES,
+    );
+    expect(junk.skillSearch).toEqual([]);
+    expect(junk.connectors).toEqual([]);
+  });
 });
