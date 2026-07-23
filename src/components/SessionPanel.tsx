@@ -52,6 +52,42 @@ export function SessionPanel({ id, onChangeFolder }: { id: string; onChangeFolde
   const [historyOpen, setHistoryOpen] = useState(false);
   const [colorOpen, setColorOpen] = useState(false);
   const [tuneOpen, setTuneOpen] = useState(false);
+  const [undoBusy, setUndoBusy] = useState(false);
+  const token = useAgent((s) => s.token);
+  const lang = useAgent((s) => s.lang);
+  const pushToast = useAgent((s) => s.pushToast);
+  const bumpFsRefresh = useAgent((s) => s.bumpFsRefresh);
+
+  // P6.9.1 — one-click undo: restore the newest save point (the state before
+  // the last turn). The restore itself is undoable from the History panel.
+  const doUndo = async () => {
+    if (!cwd || running || undoBusy) return;
+    setUndoBusy(true);
+    const headers: Record<string, string> = { "content-type": "application/json", ...(token ? { "x-ccw-token": token } : {}) };
+    try {
+      const r = await fetch(`/api/history?cwd=${encodeURIComponent(cwd)}`, { headers });
+      const latest = r.ok ? (await r.json()).points?.[0] : null;
+      if (!latest) {
+        pushToast("undoNothing");
+      } else {
+        const res = await fetch("/api/history/restore", {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ cwd, hash: latest.hash, lang }),
+        });
+        const out = await res.json().catch(() => null);
+        if (res.ok && out?.ok) {
+          bumpFsRefresh();
+          pushToast("undoDone");
+        } else {
+          pushToast("undoFailed");
+        }
+      }
+    } catch {
+      pushToast("undoFailed");
+    }
+    setUndoBusy(false);
+  };
   const placeholderRef = useRef<Window | null>(null);
 
   const folderName = cwd ? cwd.split("/").filter(Boolean).pop() : "—";
@@ -221,6 +257,9 @@ export function SessionPanel({ id, onChangeFolder }: { id: string; onChangeFolde
         </span>
 
         <span className="panel-head-spacer" />
+        <button className="icon-btn icon-btn-sm" disabled={!cwd || running || undoBusy} title={t("undoTurnTip")} aria-label={t("undoTurnTip")} onClick={() => void doUndo()}>
+          <Icon name="undo" size={13} />
+        </button>
         <button className="icon-btn icon-btn-sm" disabled={!cwd} title={t("historyBtnTip")} aria-label={t("historyBtnTip")} onClick={() => setHistoryOpen(true)}>
           <Icon name="clock" size={14} />
         </button>

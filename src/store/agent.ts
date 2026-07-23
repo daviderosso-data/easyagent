@@ -9,6 +9,7 @@ import { autoColor } from "@/lib/panel-colors";
 import { DEFAULT_SETTINGS, PROFILES, detectProfile } from "@/lib/settings";
 import { streamAgent } from "@/lib/sse-client";
 import { clearCommandsCache } from "@/lib/commands-client";
+import { deliverNotification, notifyPermission, shouldNotify, type NotifyKind } from "@/lib/notify";
 import { messages, type MsgKey } from "@/i18n/messages";
 
 export type Item =
@@ -178,6 +179,7 @@ interface AppState {
   requestPalette: () => void;
   setLang: (l: Lang) => void;
   setTheme: (t: Theme) => void;
+  setNotifications: (on: boolean) => void;
   applySettings: (s: AppSettings) => void;
   applyProfile: (p: SecurityConfig["profile"]) => void;
   updateSecurity: (patch: Partial<SecurityConfig>) => void;
@@ -363,6 +365,13 @@ export const useAgent = create<AppState>((set, get) => ({
     void persist(next, token);
   },
 
+  setNotifications: (notifications) => {
+    const { settings, token } = get();
+    const next = { ...settings, notifications };
+    set({ settings: next });
+    void persist(next, token);
+  },
+
   applySettings: (s) => set({ settings: s, lang: s.lang }),
 
   applyProfile: (p) => {
@@ -512,6 +521,7 @@ export const useAgent = create<AppState>((set, get) => ({
     }
     if (!res?.ok) {
       set((s) => ({ orch: { ...s.orch, active: false, phase: "error", error: res?.error || "Planning failed" } }));
+      maybeNotify(get().orch.orchestratorPanel, "orchError");
       return;
     }
     const { projectRoot, projectName, brief } = res;
@@ -582,12 +592,14 @@ export const useAgent = create<AppState>((set, get) => ({
       // instead of concluding "done" on empty/stale text.
       if (sessionErrored(orch.id)) {
         set((s) => ({ orch: { ...s.orch, phase: "error", active: false, error: orchError(get().lang) } }));
+        maybeNotify(orch.id, "orchError");
         return;
       }
       const decision = parseDecision(lastAssistantText(orch.id));
 
       if (decision.status === "done" || round === MAX_ROUNDS) {
         set((s) => ({ orch: { ...s.orch, phase: "done", active: false, runInstructions: decision.run || "" } }));
+        maybeNotify(orch.id, "orchDone");
         return;
       }
       const fixes = (decision.fixes || [])
@@ -595,6 +607,7 @@ export const useAgent = create<AppState>((set, get) => ({
         .filter((d) => d.panelId);
       if (!fixes.length) {
         set((s) => ({ orch: { ...s.orch, phase: "done", active: false, runInstructions: decision.run || "" } }));
+        maybeNotify(orch.id, "orchDone");
         return;
       }
       dispatch = fixes;
@@ -965,6 +978,8 @@ function reduce(id: string, e: AgentEvent) {
       });
       break;
     case "approval_request":
+      // Notify on the first waiting approval only — one nudge per queue.
+      if ((useAgent.getState().sessions[id]?.pending.length ?? 0) === 0) maybeNotify(id, "approval");
       updateSession(id, (s) => ({
         ...s,
         pending: [
@@ -979,6 +994,7 @@ function reduce(id: string, e: AgentEvent) {
         items: [...s.items, { kind: "done", id: nid(), costUsd: e.totalCostUsd, numTurns: e.numTurns, durationMs: e.durationMs, isError: e.isError }],
         sessionId: e.sessionId || s.sessionId,
       }));
+      maybeNotify(id, e.isError ? "turnError" : "turnDone", e.durationMs);
       // The turn may have created/edited skills — let the palette refetch.
       {
         const cwd = useAgent.getState().sessions[id]?.cwd;
@@ -987,8 +1003,36 @@ function reduce(id: string, e: AgentEvent) {
       break;
     case "error":
       updateSession(id, (s) => ({ ...s, items: [...s.items, { kind: "error", id: nid(), message: e.message }] }));
+      maybeNotify(id, "turnError");
       break;
   }
+}
+
+const NOTIF_TITLE: Record<NotifyKind, MsgKey> = {
+  turnDone: "notifDone",
+  turnError: "notifError",
+  approval: "notifApproval",
+  orchDone: "notifOrchDone",
+  orchError: "notifOrchError",
+};
+
+/** Desktop notification for a background event (P6.9.2). Role panels stay
+ *  silent during orchestration — the orchestration outcome notifies instead. */
+function maybeNotify(id: string, kind: NotifyKind, durationMs?: number) {
+  const st = useAgent.getState();
+  const s = st.sessions[id];
+  if (s?.orchestrationGrant && (kind === "turnDone" || kind === "turnError")) return;
+  const focused = typeof document !== "undefined" && document.hasFocus();
+  if (!shouldNotify({ enabled: !!st.settings.notifications, permission: notifyPermission(), focused, kind, durationMs })) return;
+  const msg = messages[st.lang] ?? messages.en;
+  const folder = s?.cwd?.split("/").filter(Boolean).pop() ?? "";
+  const body = kind === "orchDone" || kind === "orchError" ? st.orch.projectName : s?.roleLabel ? `${s.roleLabel} — ${folder}` : folder;
+  deliverNotification(msg[NOTIF_TITLE[kind]], body, `easyagent-${kind}-${id}`, () => {
+    const cur = useAgent.getState();
+    const proj = cur.sessions[id]?.project;
+    if (proj && cur.activeProject !== proj) cur.activateProject(proj);
+    cur.setActivePanel(id);
+  });
 }
 
 /* ---- Orchestration helpers ---- */

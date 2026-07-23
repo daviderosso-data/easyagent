@@ -33,6 +33,8 @@ export interface AppSettings {
   security: SecurityConfig;
   /** Last-used project folder. */
   cwd: string | null;
+  /** Desktop notifications when the app is in the background. */
+  notifications: boolean;
 }
 
 /** The three presets. Users can then tweak individual toggles. */
@@ -72,6 +74,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   model: null,
   security: PROFILES.locked,
   cwd: null,
+  notifications: false,
 };
 
 /** Config used for orchestration turns: fully autonomous (no approval prompts,
