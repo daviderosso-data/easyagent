@@ -280,6 +280,81 @@ function EngineAccounts({ headers }: { headers: () => Record<string, string> }) 
           )}
         </div>
       ))}
+      <EngineDoctor headers={headers} />
+    </div>
+  );
+}
+
+interface EngineDiag {
+  id: string;
+  label: string;
+  installed: boolean;
+  path: string | null;
+  version: string | null;
+  loggedIn: boolean | null;
+  fix: { kind: "install" | "login" | "start"; command?: string } | null;
+}
+
+/** P6.9.5 — per-engine health check with the fix for whatever is broken. */
+function EngineDoctor({ headers }: { headers: () => Record<string, string> }) {
+  const t = useT();
+  const [open, setOpen] = useState(false);
+  const [engines, setEngines] = useState<EngineDiag[] | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const run = async () => {
+    setBusy(true);
+    try {
+      const r = await fetch("/api/providers/doctor", { headers: headers() });
+      setEngines(r.ok ? (await r.json()).engines : []);
+    } catch {
+      setEngines([]);
+    }
+    setBusy(false);
+  };
+
+  return (
+    <div>
+      <button
+        className="link-btn"
+        onClick={() => {
+          setOpen((v) => !v);
+          if (!open && engines === null) void run();
+        }}
+      >
+        {open ? "▾" : "▸"} {t("doctorTitle")}
+      </button>
+      {open && (
+        <div className="advanced">
+          {engines === null || busy ? (
+            <p className="settings-sub">{t("doctorChecking")}</p>
+          ) : (
+            engines.map((e) => (
+              <div key={e.id} className="doctor-row">
+                <p>
+                  {e.fix === null ? "✓" : "✗"} <b>{e.label}</b>
+                  {e.version && <span className="settings-sub"> · {e.version}</span>}
+                  {e.path === "npx" && <span className="settings-sub"> · {t("docNpxNote")}</span>}
+                </p>
+                {e.fix?.kind === "install" && (
+                  <p className="settings-sub">
+                    {t("docFixInstall")} <code>{e.fix.command}</code>
+                  </p>
+                )}
+                {e.fix?.kind === "login" && <p className="settings-sub">{t("docFixLogin")}</p>}
+                {e.fix?.kind === "start" && (
+                  <p className="settings-sub">
+                    {t("docFixOllama")} <code>{e.fix.command}</code>
+                  </p>
+                )}
+              </div>
+            ))
+          )}
+          <button className="btn btn-soft btn-sm" disabled={busy} onClick={() => void run()}>
+            {t("docRecheck")}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

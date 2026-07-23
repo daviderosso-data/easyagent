@@ -24,18 +24,32 @@ one entry point, plain language, defaults over config.
   Settings; notifies when the app is in the background about a finished long
   turn (>10s), a waiting approval, a failed turn (incl. rate limits), or an
   orchestration outcome. Role panels stay silent during orchestration.
-- **P6.9.3 — Unified approvals inbox** — one global badge in the sidebar listing
-  every pending approval across all sessions; click jumps to the right panel.
-- **P6.9.4 — A/B engine comparison** — send the same prompt to two engines in
-  side-by-side panels and pick the result to keep. Builds on split view +
-  providers.
-- **P6.9.5 — Engine doctor** — diagnostics panel per engine: binary found,
-  version, login state, Ollama reachable, with guided one-click fixes.
-- **P6.9.6 — Engine failover suggestion** — on rate limit mid-work, offer
-  "continue with another engine" (the provider seam makes the switch cheap).
-- **P6.9.7 — Export session** — transcript to Markdown/HTML including diffs.
-- **P6.9.8 — "Open PR" from the History panel** — create branch + GitHub PR with
-  title/description generated from the transcript (commit+push already exist).
+- **P6.9.3 — Unified approvals inbox (shipped 2026-07-23)** — sidebar list of
+  every pending approval across all sessions/projects; click jumps to the right
+  project and panel.
+- **P6.9.4 — A/B engine comparison (shipped 2026-07-23)** — split icon spawns a
+  linked twin panel on another engine; prompts sent to either go to both. Both
+  share the project files (the popover says so) — best for questions/proposals.
+- **P6.9.5 — Engine doctor (shipped 2026-07-23)** — Settings → Other engines →
+  expandable report: binary, version, login, Ollama daemon, with the exact
+  install/start command for whatever is broken.
+- **P6.9.6 — Engine failover suggestion (shipped 2026-07-23)** — providers tag
+  usage-limit errors; a bar offers the other usable engines (fresh conversation,
+  transcript stays visible).
+- **P6.9.7 — Export session (shipped 2026-07-23)** — Markdown/HTML download from
+  the History panel, file changes and costs included.
+- **P6.9.8 — "Open PR" (shipped 2026-07-23)** — History → git section: branch
+  off the default branch if needed, push, `gh pr create`; title/description
+  prefilled from the transcript, editable.
+- **P6.9.9 — Images (shipped 2026-07-23)** — in-app viewer for project images
+  (confined `/api/fs/raw`), plus a one-click "image generation" preset skill so
+  Claude chats can create images through Codex's built-in image tool (ChatGPT
+  subscription, no API key). Codex panels generate images natively with no
+  setup. Grok has no CLI image tool yet (Imagine is app/API-only).
+
+Also 2026-07-23: the launcher now rebuilds when the code is newer than the
+build — a stale `.next` was silently hiding new features (how the GPT-5.6
+models stayed invisible).
 
 ## P7 — Auth/TLS (next major phase)
 

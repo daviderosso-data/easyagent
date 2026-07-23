@@ -5,6 +5,7 @@ import { useAgent } from "@/store/agent";
 import { useT, useLang } from "@/i18n";
 import { DiffText } from "@/components/DiffView";
 import { Icon } from "@/components/icons";
+import { sessionToHtml, sessionToMarkdown } from "@/lib/export-session";
 
 interface SavePoint {
   hash: string;
@@ -42,6 +43,42 @@ export function HistoryPanel({ id, onClose }: { id: string; onClose: () => void 
   const cwd = useAgent((s) => s.sessions[id]?.cwd ?? "");
   const running = useAgent((s) => s.sessions[id]?.running ?? false);
   const bumpFsRefresh = useAgent((s) => s.bumpFsRefresh);
+  const items = useAgent((s) => s.sessions[id]?.items ?? []);
+  const provider = useAgent((s) => s.sessions[id]?.provider ?? "claude");
+  const selModel = useAgent((s) => s.sessions[id]?.selModel ?? null);
+  const providers = useAgent((s) => s.providers);
+
+  // P6.9.8 — PR title/description prefilled from the transcript, editable.
+  const lastText = (kind: "user" | "assistant"): string => {
+    for (let i = items.length - 1; i >= 0; i--) {
+      const it = items[i];
+      if (it.kind === kind) return it.text;
+    }
+    return "";
+  };
+  const prSuggest = {
+    title: lastText("user").split("\n")[0].trim().slice(0, 60) || "easyagent changes",
+    description: `${lastText("assistant").trim().slice(0, 600)}\n\n_Created with easyagent_`.trim(),
+  };
+
+  // P6.9.7 — download the transcript as a self-contained document.
+  const doExport = (fmt: "md" | "html") => {
+    const folder = cwd.split("/").filter(Boolean).pop() ?? "session";
+    const meta = {
+      project: folder,
+      engine: providers.find((p) => p.id === provider)?.label ?? provider,
+      model: selModel ?? t("optDefault"),
+      date: new Date().toLocaleString(),
+      labels: { you: t("expYou"), assistant: t("expAssistant"), tool: t("expTool"), cost: t("expCost") },
+    };
+    const content = fmt === "md" ? sessionToMarkdown(items, meta) : sessionToHtml(items, meta);
+    const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([content], { type: fmt === "md" ? "text/markdown" : "text/html" }));
+    a.download = `${folder}-${stamp}.${fmt}`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
 
   const [points, setPoints] = useState<SavePoint[] | null>(null);
   const [gitMissing, setGitMissing] = useState(false);
@@ -210,12 +247,22 @@ export function HistoryPanel({ id, onClose }: { id: string; onClose: () => void 
                 </div>
               )}
 
+              <div className="export-row">
+                <span className="settings-sub">{t("exportTitle")}</span>
+                <button className="btn btn-soft btn-sm" disabled={!items.length} onClick={() => doExport("md")}>
+                  Markdown
+                </button>
+                <button className="btn btn-soft btn-sm" disabled={!items.length} onClick={() => doExport("html")}>
+                  HTML
+                </button>
+              </div>
+
               {!gitMissing && (
                 <>
                   <button className="link-btn" onClick={() => setShowGit((v) => !v)}>
                     {showGit ? "▾" : "▸"} {t("advancedGit")}
                   </button>
-                  {showGit && <GitSection cwd={cwd} headers={headers} />}
+                  {showGit && <GitSection cwd={cwd} headers={headers} suggest={prSuggest} />}
                 </>
               )}
             </>
@@ -226,13 +273,52 @@ export function HistoryPanel({ id, onClose }: { id: string; onClose: () => void 
   );
 }
 
-function GitSection({ cwd, headers }: { cwd: string; headers: () => Record<string, string> }) {
+function GitSection({
+  cwd,
+  headers,
+  suggest,
+}: {
+  cwd: string;
+  headers: () => Record<string, string>;
+  suggest: { title: string; description: string };
+}) {
   const t = useT();
   const [status, setStatus] = useState<GitStatus | null>(null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [pushTail, setPushTail] = useState<string | null>(null);
+  const [prOpen, setPrOpen] = useState(false);
+  const [prTitle, setPrTitle] = useState("");
+  const [prBody, setPrBody] = useState("");
+  const [prUrl, setPrUrl] = useState<string | null>(null);
+  const [prErr, setPrErr] = useState<string | null>(null);
+  const [prTail, setPrTail] = useState<string | null>(null);
+
+  // P6.9.8 — branch + push + gh pr create, all server-side.
+  const openPr = async () => {
+    setBusy("pr");
+    setPrErr(null);
+    setPrTail(null);
+    try {
+      const r = await fetch("/api/git/pr", {
+        method: "POST",
+        headers: headers(),
+        body: JSON.stringify({ cwd, title: prTitle.trim(), description: prBody }),
+      });
+      const data = await r.json();
+      if (data.ok) {
+        setPrUrl(data.url || null);
+        setPrOpen(false);
+      } else {
+        setPrErr(data.error === "no-gh" ? t("prNoGh") : data.error === "dirty" ? t("prDirty") : t("prFailed"));
+        if (data.tail) setPrTail(data.tail);
+      }
+    } catch {
+      setPrErr(t("prFailed"));
+    }
+    setBusy(null);
+  };
 
   const refresh = useCallback(async () => {
     try {
@@ -321,8 +407,53 @@ function GitSection({ cwd, headers }: { cwd: string; headers: () => Record<strin
           <button className="btn btn-soft btn-sm" disabled={!!busy} onClick={() => post("/api/git/push", { cwd }, t("gitPushDone"))}>
             {t("gitPush")}
           </button>
+          <button
+            className="btn btn-soft btn-sm"
+            disabled={!!busy}
+            onClick={() => {
+              setPrOpen((v) => !v);
+              setPrUrl(null);
+              setPrErr(null);
+              if (!prOpen) {
+                setPrTitle(suggest.title);
+                setPrBody(suggest.description);
+              }
+            }}
+          >
+            {t("gitOpenPr")}
+          </button>
         </div>
       )}
+      {prOpen && (
+        <div className="git-commit-box pr-box">
+          <input className="field-input" value={prTitle} placeholder={t("prTitleLbl")} onChange={(e) => setPrTitle(e.target.value)} />
+          <textarea
+            className="field-input pr-body"
+            value={prBody}
+            placeholder={t("prBodyLbl")}
+            rows={4}
+            onChange={(e) => setPrBody(e.target.value)}
+          />
+          <div className="row-actions">
+            <button className="btn btn-ghost" disabled={!!busy} onClick={() => setPrOpen(false)}>
+              {t("deny")}
+            </button>
+            <button className="btn btn-primary" disabled={!prTitle.trim() || !!busy} onClick={() => void openPr()}>
+              {busy === "pr" ? "…" : t("prCreate")}
+            </button>
+          </div>
+        </div>
+      )}
+      {prUrl && (
+        <p className="settings-sub">
+          {t("prDone")}{" "}
+          <a href={prUrl} target="_blank" rel="noreferrer">
+            {prUrl}
+          </a>
+        </p>
+      )}
+      {prErr && <p className="red-warning">{prErr}</p>}
+      {prTail && <pre className="preview-log">{prTail}</pre>}
       {note && <p className="settings-sub">{note}</p>}
       {pushTail && <pre className="preview-log">{pushTail}</pre>}
     </div>

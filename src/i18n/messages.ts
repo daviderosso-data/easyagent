@@ -427,6 +427,49 @@ export const messages = {
     notifApproval: "Waiting for your approval",
     notifOrchDone: "Orchestration finished",
     notifOrchError: "Orchestration stopped with a problem",
+
+    // P6.9.3 approvals inbox
+    inboxTitle: "Waiting for approval",
+
+    // P6.9.5 engine doctor
+    doctorTitle: "Engine doctor",
+    doctorChecking: "Checking the engines…",
+    docNpxNote: "no global install — using npx (slower first start)",
+    docFixInstall: "Not installed — install with:",
+    docFixLogin: "Not signed in — use the Sign in button above.",
+    docFixOllama: "Ollama isn't running — open the Ollama app or run:",
+    docRecheck: "Check again",
+
+    // P6.9.6 failover
+    failoverMsg: "Engine at its limit — continue with:",
+    failoverNote: "The new engine starts without the previous context (the transcript stays visible).",
+
+    // P6.9.7 export
+    exportTitle: "Export the conversation:",
+    expYou: "You",
+    expAssistant: "Assistant",
+    expTool: "Action",
+    expCost: "Cost",
+
+    // P6.9.4 A/B comparison
+    abTip: "Compare with another engine (A/B)",
+    abPick: "Send every prompt to this chat AND to:",
+    abWarn: "Both work on the same files — best for questions and proposals.",
+    abUnlink: "Stop the A/B comparison",
+
+    // P6.9.8 open PR
+    gitOpenPr: "Open PR",
+    prTitleLbl: "Title",
+    prBodyLbl: "Description",
+    prCreate: "Create the PR",
+    prDone: "PR opened:",
+    prNoGh: "GitHub CLI not found — install it with: brew install gh",
+    prDirty: "Commit your changes first (box above).",
+    prFailed: "Couldn't open the PR.",
+
+    // P6.9.9 images
+    imgLoadFailed: "Couldn't load the image.",
+    presetImageGen: "Image generation (via your ChatGPT subscription) — lets this chat create images",
   },
   it: {
     brand: "easyagent",
@@ -844,6 +887,49 @@ export const messages = {
     notifApproval: "In attesa della tua approvazione",
     notifOrchDone: "Orchestrazione completata",
     notifOrchError: "Orchestrazione interrotta da un problema",
+
+    // P6.9.3 inbox approvazioni
+    inboxTitle: "In attesa di approvazione",
+
+    // P6.9.5 engine doctor
+    doctorTitle: "Diagnostica engine",
+    doctorChecking: "Controllo gli engine…",
+    docNpxNote: "nessuna installazione globale — uso npx (primo avvio più lento)",
+    docFixInstall: "Non installato — installa con:",
+    docFixLogin: "Non collegato — usa il bottone Accedi qui sopra.",
+    docFixOllama: "Ollama non è attivo — apri l'app Ollama o esegui:",
+    docRecheck: "Ricontrolla",
+
+    // P6.9.6 failover
+    failoverMsg: "Engine al limite — continua con:",
+    failoverNote: "Il nuovo engine riparte senza il contesto precedente (la conversazione resta visibile).",
+
+    // P6.9.7 export
+    exportTitle: "Esporta la conversazione:",
+    expYou: "Tu",
+    expAssistant: "Assistente",
+    expTool: "Azione",
+    expCost: "Costo",
+
+    // P6.9.4 confronto A/B
+    abTip: "Confronta con un altro engine (A/B)",
+    abPick: "Invia ogni prompt a questa chat E a:",
+    abWarn: "Entrambi lavorano sugli stessi file — ideale per domande e proposte.",
+    abUnlink: "Chiudi il confronto A/B",
+
+    // P6.9.8 apri PR
+    gitOpenPr: "Apri PR",
+    prTitleLbl: "Titolo",
+    prBodyLbl: "Descrizione",
+    prCreate: "Crea la PR",
+    prDone: "PR aperta:",
+    prNoGh: "GitHub CLI non trovato — installalo con: brew install gh",
+    prDirty: "Prima fai il commit delle modifiche (riquadro qui sopra).",
+    prFailed: "Impossibile aprire la PR.",
+
+    // P6.9.9 immagini
+    imgLoadFailed: "Impossibile caricare l'immagine.",
+    presetImageGen: "Generazione immagini (col tuo abbonamento ChatGPT) — questa chat potrà creare immagini",
   },
 } satisfies Record<Lang, Record<string, string>>;
 

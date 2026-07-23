@@ -11,7 +11,7 @@
 import { spawn } from "node:child_process";
 import type { AgentEvent } from "@/lib/agent-events";
 import type { SecurityConfig } from "@/lib/settings";
-import { authError, engineUnavailable, genericError } from "@/server/i18n-server";
+import { authError, engineUnavailable, genericError, rateLimitError, RATE_LIMIT_RE } from "@/server/i18n-server";
 import type { EngineStatus, ProviderModel, TurnRequest } from "@/server/providers/types";
 import { engineEnv, resolveBin, runQuick, streamLines } from "@/server/providers/cli-utils";
 
@@ -134,6 +134,8 @@ export async function runGrokTurn(req: TurnRequest): Promise<void> {
       for (const e of mapGrokEvent(ev, ctx)) {
         if (e.type === "error" && /not signed in|not authenticated/i.test(e.message)) {
           emit({ type: "error", message: authError(lang) });
+        } else if (e.type === "error" && RATE_LIMIT_RE.test(e.message)) {
+          emit({ type: "error", message: rateLimitError(lang), code: "rate-limit" });
         } else {
           emit(e);
         }

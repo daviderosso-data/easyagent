@@ -26,7 +26,11 @@ interface Tab {
   saved: string;
   binary: boolean;
   tooBig: boolean;
+  /** Rendered by the image viewer instead of the editor (P6.9.9). */
+  image?: boolean;
 }
+
+const IMAGE_EXT_RE = /\.(png|jpe?g|gif|webp|svg|bmp|ico)$/i;
 
 type MenuKind = "newFile" | "newFolder" | "rename";
 
@@ -112,6 +116,12 @@ export function FileTree() {
   const openFile = async (path: string) => {
     const existing = tabs.find((t) => t.path === path);
     if (existing) {
+      setActivePath(path);
+      return;
+    }
+    if (IMAGE_EXT_RE.test(path)) {
+      const name = path.split("/").pop() ?? "";
+      setTabs((ts) => [...ts, { path, name, content: "", saved: "", binary: true, tooBig: false, image: true }]);
       setActivePath(path);
       return;
     }
@@ -311,6 +321,46 @@ export function FileTree() {
       )}
     </aside>
   );
+}
+
+/** P6.9.9 — image viewer tab. Bytes come from the confined /api/fs/raw route
+ *  (token in a header, never in the URL) and are shown via an object URL. */
+function ImageView({ path }: { path: string }) {
+  const t = useT();
+  const token = useAgent((s) => s.token);
+  const fsRefresh = useAgent((s) => s.fsRefresh);
+  const [url, setUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let objUrl: string | null = null;
+    let cancelled = false;
+    setFailed(false);
+    fetch(`/api/fs/raw?path=${encodeURIComponent(path)}`, {
+      headers: token ? { "x-ccw-token": token } : {},
+    })
+      .then((r) => {
+        if (!r.ok) throw new Error("raw failed");
+        return r.blob();
+      })
+      .then((b) => {
+        if (cancelled) return;
+        objUrl = URL.createObjectURL(b);
+        setUrl(objUrl);
+      })
+      .catch(() => {
+        if (!cancelled) setFailed(true);
+      });
+    return () => {
+      cancelled = true;
+      if (objUrl) URL.revokeObjectURL(objUrl);
+    };
+  }, [path, token, fsRefresh]);
+
+  if (failed) return <div className="ft-empty">{t("imgLoadFailed")}</div>;
+  // Object URLs can't go through next/image optimization — plain <img> is right here.
+  // eslint-disable-next-line @next/next/no-img-element
+  return <div className="image-view">{url && <img src={url} alt={path.split("/").pop() ?? ""} />}</div>;
 }
 
 function TreeNode({
@@ -539,7 +589,9 @@ function EditorModal({
 
         <div className="editor-body">
           {active &&
-            (active.binary ? (
+            (active.image ? (
+              <ImageView key={active.path} path={active.path} />
+            ) : active.binary ? (
               <div className="ft-empty">{t("binaryFile")}</div>
             ) : active.tooBig ? (
               <div className="ft-empty">{t("fileTooBig")}</div>
