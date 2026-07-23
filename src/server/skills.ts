@@ -94,6 +94,59 @@ export function toggleSkill(cwd: string, dirName: string, enabled: boolean): { o
   }
 }
 
+/* ---- Built-in preset skills (P6.9.9) ---- */
+// One-click installs from the Skills panel. Content is English (it instructs
+// the agent, not the user).
+const PRESET_SKILLS: Record<string, { md: string }> = {
+  "image-gen": {
+    md: `---
+name: image-gen
+description: Generate or edit images (PNG) from a text description using the Codex CLI's built-in image tool on the user's ChatGPT subscription. Use when the user asks to create, draw or generate an image, icon, logo, illustration or picture.
+---
+
+# Generate images via Codex
+
+Run this from the project folder (Bash), with a rich, specific description
+(subject, style, colors, background) and a relative output path:
+
+    codex exec --skip-git-repo-check --sandbox workspace-write -m gpt-5.6-luna "Generate an image of <detailed description> and save it as <relative/path.png> in the current directory."
+
+- If \`codex\` is not on PATH, replace it with \`npx --yes @openai/codex@latest\`.
+- When done, tell the user the file path of the image.
+- Requires the Codex CLI signed in to ChatGPT (easyagent Settings → Other engines).
+- If the command fails because of sandbox or permission limits, do not retry:
+  tell the user to switch this chat's engine to Codex (header dropdown) and ask
+  for the image there — Codex generates images natively.
+`,
+  },
+};
+
+export function presetSkillIds(cwd: string): { id: string; installed: boolean }[] {
+  const projectRoot = projectRootFor(cwd);
+  if (!projectRoot) return [];
+  return Object.keys(PRESET_SKILLS).map((id) => ({
+    id,
+    installed:
+      existsSync(join(projectRoot, ".claude", "skills", id)) || existsSync(join(projectRoot, ".claude", "skills-off", id)),
+  }));
+}
+
+export function installPresetSkill(cwd: string, id: string): { ok: boolean; error?: string } {
+  const preset = PRESET_SKILLS[id];
+  const projectRoot = projectRootFor(cwd);
+  if (!preset || !projectRoot) return { ok: false, error: "bad-request" };
+  const dir = join(projectRoot, ".claude", "skills", id);
+  if (existsSync(dir) || existsSync(join(projectRoot, ".claude", "skills-off", id))) return { ok: false, error: "exists" };
+  try {
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, "SKILL.md"), preset.md, "utf8");
+    ensurePluginManifest(projectRoot);
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "failed" };
+  }
+}
+
 /** Ensures the plugin manifest exists so skills get a friendly qualified name. */
 function ensurePluginManifest(projectRoot: string): void {
   const dir = join(projectRoot, ".claude", ".claude-plugin");

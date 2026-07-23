@@ -466,6 +466,10 @@ export const messages = {
     prNoGh: "GitHub CLI not found — install it with: brew install gh",
     prDirty: "Commit your changes first (box above).",
     prFailed: "Couldn't open the PR.",
+
+    // P6.9.9 images
+    imgLoadFailed: "Couldn't load the image.",
+    presetImageGen: "Image generation (via your ChatGPT subscription) — lets this chat create images",
   },
   it: {
     brand: "easyagent",
@@ -922,6 +926,10 @@ export const messages = {
     prNoGh: "GitHub CLI non trovato — installalo con: brew install gh",
     prDirty: "Prima fai il commit delle modifiche (riquadro qui sopra).",
     prFailed: "Impossibile aprire la PR.",
+
+    // P6.9.9 immagini
+    imgLoadFailed: "Impossibile caricare l'immagine.",
+    presetImageGen: "Generazione immagini (col tuo abbonamento ChatGPT) — questa chat potrà creare immagini",
   },
 } satisfies Record<Lang, Record<string, string>>;
 

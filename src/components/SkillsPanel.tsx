@@ -53,6 +53,7 @@ export function SkillsPanel({ panelId, onClose }: { panelId: string; onClose: ()
   const send = useAgent((s) => s.send);
 
   const [skills, setSkills] = useState<SkillInfo[] | null>(null);
+  const [presets, setPresets] = useState<{ id: string; installed: boolean }[]>([]);
   const [detail, setDetail] = useState<SkillInfo | null>(null);
   const [body, setBody] = useState<string>("");
   const [creating, setCreating] = useState(false);
@@ -74,8 +75,10 @@ export function SkillsPanel({ panelId, onClose }: { panelId: string; onClose: ()
     try {
       const r = await fetch(`/api/skills?cwd=${encodeURIComponent(cwd)}`, { headers: headers() });
       const d = await r.json();
-      if (d.ok) setSkills(d.skills);
-      else setErr(true);
+      if (d.ok) {
+        setSkills(d.skills);
+        setPresets(Array.isArray(d.presets) ? d.presets : []);
+      } else setErr(true);
     } catch {
       setErr(true);
     }
@@ -117,6 +120,19 @@ export function SkillsPanel({ panelId, onClose }: { panelId: string; onClose: ()
       }
     } catch {
       setInstallErr(hit.id);
+    }
+    setInstalling(null);
+  };
+
+  // P6.9.9 — one-click built-in preset (image generation via Codex).
+  const installPreset = async (preset: string) => {
+    setInstalling("preset");
+    try {
+      await fetch("/api/skills", { method: "POST", headers: headers(), body: JSON.stringify({ cwd, preset }) });
+      clearCommandsCache(cwd);
+      await refresh();
+    } catch {
+      /* list refresh shows the truth */
     }
     setInstalling(null);
   };
@@ -273,6 +289,18 @@ export function SkillsPanel({ panelId, onClose }: { panelId: string; onClose: ()
                       </label>
                     </div>
                   ))}
+                </div>
+              )}
+              {market === null && presets.some((p) => !p.installed) && (
+                <div className="preset-skill">
+                  <span className="settings-sub">{t("presetImageGen")}</span>
+                  <button
+                    className="btn btn-soft btn-sm"
+                    disabled={!cwd || installing === "preset"}
+                    onClick={() => void installPreset("image-gen")}
+                  >
+                    {t("orchMcpAdd")}
+                  </button>
                 </div>
               )}
               <button className="btn btn-primary full-btn" disabled={!cwd} onClick={() => setCreating(true)}>
