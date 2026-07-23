@@ -2932,3 +2932,28 @@ textarea:focus-visible,
   min-height: 70px;
   font-family: inherit;
 }
+
+/* P6.9.4 — A/B comparison */
+.ab-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--brand);
+  border: 0;
+  border-radius: var(--ds-radius-full);
+  cursor: pointer;
+}
+.ab-option {
+  display: block;
+  width: 100%;
+  margin: 4px 0;
+  text-align: left;
+}
+.ab-warn {
+  max-width: 220px;
+  white-space: normal;
+}

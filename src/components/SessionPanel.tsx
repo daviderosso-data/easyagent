@@ -53,6 +53,10 @@ export function SessionPanel({ id, onChangeFolder }: { id: string; onChangeFolde
   const [colorOpen, setColorOpen] = useState(false);
   const [tuneOpen, setTuneOpen] = useState(false);
   const [undoBusy, setUndoBusy] = useState(false);
+  const [abOpen, setAbOpen] = useState(false);
+  const abPeer = useAgent((s) => s.sessions[id]?.abPeer);
+  const startAB = useAgent((s) => s.startAB);
+  const endAB = useAgent((s) => s.endAB);
   const token = useAgent((s) => s.token);
   const lang = useAgent((s) => s.lang);
   const pushToast = useAgent((s) => s.pushToast);
@@ -257,6 +261,44 @@ export function SessionPanel({ id, onChangeFolder }: { id: string; onChangeFolde
         </span>
 
         <span className="panel-head-spacer" />
+        {abPeer ? (
+          <button className="ab-chip" title={t("abUnlink")} aria-label={t("abUnlink")} onClick={() => endAB(id)}>
+            A/B <Icon name="x" size={10} />
+          </button>
+        ) : (
+          <span className="color-wrap">
+            <button
+              className="icon-btn icon-btn-sm"
+              disabled={!cwd || running}
+              title={t("abTip")}
+              aria-label={t("abTip")}
+              aria-expanded={abOpen}
+              onClick={() => setAbOpen((v) => !v)}
+            >
+              <Icon name="split" size={13} />
+            </button>
+            {abOpen && (
+              <div className="hdr-pop" onMouseLeave={() => setAbOpen(false)}>
+                <span className="field-label">{t("abPick")}</span>
+                {providers
+                  .filter((p) => p.id !== provider && p.status.installed && p.status.loggedIn !== false)
+                  .map((p) => (
+                    <button
+                      key={p.id}
+                      className="btn btn-soft btn-sm ab-option"
+                      onClick={() => {
+                        setAbOpen(false);
+                        startAB(id, p.id);
+                      }}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                <p className="field-label ab-warn">{t("abWarn")}</p>
+              </div>
+            )}
+          </span>
+        )}
         <button className="icon-btn icon-btn-sm" disabled={!cwd || running || undoBusy} title={t("undoTurnTip")} aria-label={t("undoTurnTip")} onClick={() => void doUndo()}>
           <Icon name="undo" size={13} />
         </button>

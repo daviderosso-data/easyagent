@@ -451,6 +451,12 @@ export const messages = {
     expTool: "Action",
     expCost: "Cost",
 
+    // P6.9.4 A/B comparison
+    abTip: "Compare with another engine (A/B)",
+    abPick: "Send every prompt to this chat AND to:",
+    abWarn: "Both work on the same files — best for questions and proposals.",
+    abUnlink: "Stop the A/B comparison",
+
     // P6.9.8 open PR
     gitOpenPr: "Open PR",
     prTitleLbl: "Title",
@@ -900,6 +906,12 @@ export const messages = {
     expAssistant: "Assistente",
     expTool: "Azione",
     expCost: "Costo",
+
+    // P6.9.4 confronto A/B
+    abTip: "Confronta con un altro engine (A/B)",
+    abPick: "Invia ogni prompt a questa chat E a:",
+    abWarn: "Entrambi lavorano sugli stessi file — ideale per domande e proposte.",
+    abUnlink: "Chiudi il confronto A/B",
 
     // P6.9.8 apri PR
     gitOpenPr: "Apri PR",

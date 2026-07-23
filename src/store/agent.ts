@@ -80,6 +80,8 @@ export interface Session {
   skills?: string[];
   /** Last turn died on a usage limit — offer switching engine (P6.9.6). */
   rateLimited?: boolean;
+  /** Twin panel of an A/B comparison — prompts sent here go to both (P6.9.4). */
+  abPeer?: string;
 }
 
 export type PreviewState = "idle" | "installing" | "starting" | "running" | "error";
@@ -199,6 +201,8 @@ interface AppState {
   stopOrchestration: () => void;
   dismissOrchestration: () => void;
 
+  startAB: (id: string, provider: string) => void;
+  endAB: (id: string) => void;
   setCwd: (id: string, cwd: string) => void;
   setPanelColor: (id: string, color: string | undefined) => void;
   setProvider: (id: string, provider: string) => void;
@@ -426,6 +430,10 @@ export const useAgent = create<AppState>((set, get) => ({
     const rest = panels.filter((p) => p !== id);
     const nextSessions = { ...sessions };
     delete nextSessions[id];
+    // Closing one half of an A/B pair ends the comparison on the survivor.
+    for (const [sid, s] of Object.entries(nextSessions)) {
+      if (s.abPeer === id) nextSessions[sid] = { ...s, abPeer: undefined };
+    }
     set({
       sessions: nextSessions,
       panels: rest,
@@ -436,6 +444,31 @@ export const useAgent = create<AppState>((set, get) => ({
   },
 
   setActivePanel: (id) => set({ activePanel: id }),
+
+  // P6.9.4 — spawn a linked twin panel on another engine; prompts sent to
+  // either go to both until the pair is unlinked (or one panel closes).
+  startAB: (id, provider) => {
+    const { sessions, panels } = get();
+    const src = sessions[id];
+    if (!src?.cwd || src.abPeer) return;
+    const siblings = panels.filter((p) => sessions[p]?.project === src.project);
+    if (siblings.length >= MAX_PANELS) return;
+    const twin = newSession(src.cwd, src.project);
+    twin.provider = provider === "claude" ? undefined : provider;
+    twin.color = autoColor(panels.length);
+    twin.abPeer = id;
+    set((s) => ({
+      sessions: { ...s.sessions, [twin.id]: twin, [id]: { ...s.sessions[id], abPeer: twin.id } },
+      panels: [...s.panels, twin.id],
+    }));
+    scheduleSaveWorkspace();
+  },
+
+  endAB: (id) => {
+    const peer = get().sessions[id]?.abPeer;
+    updateSession(id, (s) => ({ ...s, abPeer: undefined }));
+    if (peer) updateSession(peer, (s) => ({ ...s, abPeer: undefined }));
+  },
 
   activateProject: (path) => {
     const { sessions, panels, activePanel } = get();
@@ -770,6 +803,12 @@ export const useAgent = create<AppState>((set, get) => ({
     const st = get();
     const session = st.sessions[id];
     if (!session || session.running || !prompt.trim() || !session.cwd) return;
+    // A/B pair: forward the prompt to the twin exactly once (no ping-pong).
+    const forwarded = abForwarded.delete(id);
+    if (!forwarded && session.abPeer && st.sessions[session.abPeer] && !st.sessions[session.abPeer].running) {
+      abForwarded.add(session.abPeer);
+      void get().send(session.abPeer, prompt);
+    }
     const abortController = new AbortController();
     updateSession(id, (s) => ({
       ...s,
@@ -850,6 +889,9 @@ export const useAgent = create<AppState>((set, get) => ({
 
 /** approvalIds with an /api/chat/approve POST in flight (double-click guard). */
 const approvalsInFlight = new Set<string>();
+
+/** Panel ids about to receive an A/B-forwarded prompt (recursion guard). */
+const abForwarded = new Set<string>();
 
 function updateSession(id: string, updater: (s: Session) => Session) {
   useAgent.setState((st) => {
