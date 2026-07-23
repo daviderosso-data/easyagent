@@ -25,6 +25,7 @@ const SettingsSchema = z.object({
   model: z.string().nullable(),
   security: SecuritySchema,
   cwd: z.string().nullable(),
+  notifications: z.boolean().default(false),
 });
 
 export async function PUT(req: Request) {

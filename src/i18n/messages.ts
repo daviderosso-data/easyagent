@@ -413,6 +413,20 @@ export const messages = {
     orchMcpAdded: "Added",
     orchMcpRetry: "Retry",
     orchMcpOpenConn: "Add it from Skills → Connections (needs a key).",
+
+    // P6.9.1 undo + P6.9.2 notifications
+    undoTurnTip: "Undo last turn — files go back to how they were before it",
+    undoDone: "Last turn undone. You can bring it back from the save points.",
+    undoFailed: "Couldn't undo the last turn.",
+    undoNothing: "No save point yet — nothing to undo.",
+    notifLabel: "Desktop notifications",
+    notifHint: "When the app is in the background: work finished, approval needed, or a problem.",
+    notifDenied: "The browser is blocking notifications for this site — allow them and try again.",
+    notifDone: "Finished working",
+    notifError: "The work hit a problem",
+    notifApproval: "Waiting for your approval",
+    notifOrchDone: "Orchestration finished",
+    notifOrchError: "Orchestration stopped with a problem",
   },
   it: {
     brand: "easyagent",
@@ -816,6 +830,20 @@ export const messages = {
     orchMcpAdded: "Aggiunto",
     orchMcpRetry: "Riprova",
     orchMcpOpenConn: "Aggiungilo da Abilità → Connessioni (richiede una chiave).",
+
+    // P6.9.1 undo + P6.9.2 notifiche
+    undoTurnTip: "Annulla l'ultimo turno — i file tornano a com'erano prima",
+    undoDone: "Ultimo turno annullato. Puoi recuperarlo dai punti di salvataggio.",
+    undoFailed: "Impossibile annullare l'ultimo turno.",
+    undoNothing: "Nessun punto di salvataggio — niente da annullare.",
+    notifLabel: "Notifiche desktop",
+    notifHint: "Quando l'app è in secondo piano: lavoro finito, approvazione in attesa o un problema.",
+    notifDenied: "Il browser blocca le notifiche per questo sito — consentile e riprova.",
+    notifDone: "Lavoro completato",
+    notifError: "Il lavoro si è fermato per un problema",
+    notifApproval: "In attesa della tua approvazione",
+    notifOrchDone: "Orchestrazione completata",
+    notifOrchError: "Orchestrazione interrotta da un problema",
   },
 } satisfies Record<Lang, Record<string, string>>;
 

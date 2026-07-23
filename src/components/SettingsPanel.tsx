@@ -22,6 +22,8 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
   const lang = useAgent((s) => s.lang);
   const theme = useAgent((s) => s.settings.theme);
   const setTheme = useAgent((s) => s.setTheme);
+  const setNotifications = useAgent((s) => s.setNotifications);
+  const [notifBlocked, setNotifBlocked] = useState(false);
   const token = useAgent((s) => s.token);
   const sec = settings.security;
   const activeProfile = detectProfile(sec);
@@ -40,6 +42,24 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     refreshAccount();
   }, []);
+
+  const toggleNotifications = async (on: boolean) => {
+    if (on) {
+      // Permission must be asked from a user gesture — this toggle is one.
+      if (typeof Notification === "undefined") {
+        setNotifBlocked(true);
+        return;
+      }
+      let perm = Notification.permission;
+      if (perm === "default") perm = await Notification.requestPermission();
+      if (perm !== "granted") {
+        setNotifBlocked(true);
+        return;
+      }
+    }
+    setNotifBlocked(false);
+    setNotifications(on);
+  };
 
   const chooseProfile = (p: SecurityProfile) => {
     if (p === "open") {
@@ -167,6 +187,9 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                 <option value="dark">{t("themeDark")}</option>
               </select>
             </label>
+            <Toggle label={t("notifLabel")} checked={settings.notifications} onChange={(v) => void toggleNotifications(v)} />
+            <p className="settings-sub">{t("notifHint")}</p>
+            {notifBlocked && <p className="red-warning">{t("notifDenied")}</p>}
           </section>
 
           {/* -------- Account -------- */}
