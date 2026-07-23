@@ -2876,3 +2876,20 @@ textarea:focus-visible,
   outline-offset: -4px;
   border-radius: var(--ds-radius-md);
 }
+
+/* P6.9.5 — engine doctor */
+.doctor-row {
+  padding: 4px 0;
+  border-bottom: 1px solid var(--line);
+}
+.doctor-row:last-of-type {
+  border-bottom: 0;
+}
+.doctor-row code {
+  font-size: 12px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 1px 5px;
+  user-select: all;
+}

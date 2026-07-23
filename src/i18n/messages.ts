@@ -430,6 +430,15 @@ export const messages = {
 
     // P6.9.3 approvals inbox
     inboxTitle: "Waiting for approval",
+
+    // P6.9.5 engine doctor
+    doctorTitle: "Engine doctor",
+    doctorChecking: "Checking the engines…",
+    docNpxNote: "no global install — using npx (slower first start)",
+    docFixInstall: "Not installed — install with:",
+    docFixLogin: "Not signed in — use the Sign in button above.",
+    docFixOllama: "Ollama isn't running — open the Ollama app or run:",
+    docRecheck: "Check again",
   },
   it: {
     brand: "easyagent",
@@ -850,6 +859,15 @@ export const messages = {
 
     // P6.9.3 inbox approvazioni
     inboxTitle: "In attesa di approvazione",
+
+    // P6.9.5 engine doctor
+    doctorTitle: "Diagnostica engine",
+    doctorChecking: "Controllo gli engine…",
+    docNpxNote: "nessuna installazione globale — uso npx (primo avvio più lento)",
+    docFixInstall: "Non installato — installa con:",
+    docFixLogin: "Non collegato — usa il bottone Accedi qui sopra.",
+    docFixOllama: "Ollama non è attivo — apri l'app Ollama o esegui:",
+    docRecheck: "Ricontrolla",
   },
 } satisfies Record<Lang, Record<string, string>>;
 
