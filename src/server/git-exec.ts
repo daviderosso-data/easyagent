@@ -21,7 +21,6 @@ export async function runGit(
       env: opts.env ?? process.env,
       timeout: opts.timeoutMs ?? 15_000,
       maxBuffer: 10 * 1024 * 1024,
-      windowsHide: true,
     });
     return { ok: true, stdout, stderr };
   } catch (e) {

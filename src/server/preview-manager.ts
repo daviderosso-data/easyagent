@@ -1,4 +1,4 @@
-import { spawn, execFile, type ChildProcess } from "node:child_process";
+import { spawn, type ChildProcess } from "node:child_process";
 import { createServer as createNetServer } from "node:net";
 import { realpathSync } from "node:fs";
 import { homedir } from "node:os";
@@ -28,7 +28,6 @@ interface PreviewEntry {
 }
 
 const URL_RE = /https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0):(\d+)/;
-const IS_WIN = process.platform === "win32";
 const START_TIMEOUT_MS = 60_000;
 const PROBE_START_MS = 10_000;
 
@@ -48,7 +47,7 @@ function freePort(): Promise<number> {
  *  account.ts uses so npm resolves outside login shells. */
 function previewEnv(port: number): NodeJS.ProcessEnv {
   const env = { ...buildAgentEnv() } as NodeJS.ProcessEnv;
-  if (!IS_WIN) env.PATH = `${homedir()}/.local/bin:/opt/homebrew/bin:/usr/local/bin:${env.PATH ?? ""}`;
+  env.PATH = `${homedir()}/.local/bin:/opt/homebrew/bin:/usr/local/bin:${env.PATH ?? ""}`;
   env.PORT = String(port);
   env.BROWSER = "none";
   env.FORCE_COLOR = "0";
@@ -59,10 +58,6 @@ function previewEnv(port: number): NodeJS.ProcessEnv {
 function killTree(child: ChildProcess): void {
   const pid = child.pid;
   if (!pid) return;
-  if (IS_WIN) {
-    execFile("taskkill", ["/pid", String(pid), "/T", "/F"], () => {});
-    return;
-  }
   try {
     // Negative pid → whole process group (npm's grandchildren included).
     process.kill(-pid, "SIGTERM");
@@ -131,18 +126,14 @@ class PreviewManager {
     needsInstall: boolean,
     entry: PreviewEntry
   ): Promise<void> {
-    const npm = IS_WIN ? "npm.cmd" : "npm";
     const port = await freePort().catch(() => 0);
 
     if (needsInstall) {
       const ok = await new Promise<boolean>((resolve) => {
-        // Windows: .cmd needs shell (CVE-2024-27980 fix); args are fixed literals.
-        const child = spawn(npm, ["install"], {
+        const child = spawn("npm", ["install"], {
           cwd: projectRoot,
           env: previewEnv(port),
-          shell: IS_WIN,
-          detached: !IS_WIN,
-          windowsHide: true,
+          detached: true,
         });
         entry.child = child;
         child.stdout?.on("data", (d) => this.pushLog(entry, d));
@@ -159,12 +150,10 @@ class PreviewManager {
     }
 
     entry.state = "starting";
-    const child = spawn(npm, ["run", script], {
+    const child = spawn("npm", ["run", script], {
       cwd: projectRoot,
       env: previewEnv(port),
-      shell: IS_WIN,
-      detached: !IS_WIN,
-      windowsHide: true,
+      detached: true,
     });
     entry.child = child;
 
