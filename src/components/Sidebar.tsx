@@ -32,11 +32,47 @@ export function Sidebar({
   // Sessions of the project on screen (no pinned project → the empty first-run panel).
   const visible = panels.filter((pid) => (activeProject ? sessions[pid]?.project === activeProject : true));
 
+  // P6.9.3 — every pending approval across ALL projects (background ones too).
+  const inbox = panels.flatMap((pid) => {
+    const s = sessions[pid];
+    return (s?.pending ?? []).map((p) => ({
+      pid,
+      project: s?.project,
+      name: s?.roleLabel || (s?.cwd ? s.cwd.split("/").filter(Boolean).pop() : "—"),
+      title: p.title,
+      risk: p.risk,
+      approvalId: p.approvalId,
+    }));
+  });
+
+  const jumpTo = (pid: string, project?: string) => {
+    if (project && project !== activeProject) activateProject(project);
+    setActive(pid);
+  };
+
   return (
     <aside className="sidebar">
       <button className="projects-btn" onClick={onProjects}>
         <Icon name="folderOpen" size={14} /> {t("projects")}
       </button>
+
+      {inbox.length > 0 && (
+        <div className="inbox" role="region" aria-label={t("inboxTitle")}>
+          <div className="inbox-head">
+            <Icon name="bell" size={13} /> {t("inboxTitle")}
+            <span className="inbox-badge">{inbox.length}</span>
+          </div>
+          {inbox.map((a) => (
+            <button key={a.approvalId} className="inbox-row" onClick={() => jumpTo(a.pid, a.project)}>
+              <span className={`inbox-dot ${a.risk === "red" ? "inbox-dot-red" : ""}`} />
+              <span className="inbox-text">
+                <span className="inbox-session">{a.name}</span>
+                <span className="inbox-title">{a.title}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {openProjects.length > 0 && (
         <div className="pinned-projects">

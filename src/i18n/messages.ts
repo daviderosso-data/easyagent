@@ -427,6 +427,9 @@ export const messages = {
     notifApproval: "Waiting for your approval",
     notifOrchDone: "Orchestration finished",
     notifOrchError: "Orchestration stopped with a problem",
+
+    // P6.9.3 approvals inbox
+    inboxTitle: "Waiting for approval",
   },
   it: {
     brand: "easyagent",
@@ -844,6 +847,9 @@ export const messages = {
     notifApproval: "In attesa della tua approvazione",
     notifOrchDone: "Orchestrazione completata",
     notifOrchError: "Orchestrazione interrotta da un problema",
+
+    // P6.9.3 inbox approvazioni
+    inboxTitle: "In attesa di approvazione",
   },
 } satisfies Record<Lang, Record<string, string>>;
 
