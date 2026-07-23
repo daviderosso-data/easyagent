@@ -10,6 +10,8 @@ import { SkillsPanel } from "@/components/SkillsPanel";
 import { ProjectsPanel, PIN_PICKER } from "@/components/ProjectsPanel";
 import { OrchestratorModal } from "@/components/OrchestratorModal";
 import { OrchestrationBanner } from "@/components/OrchestrationBanner";
+import { Toasts } from "@/components/Toasts";
+import { ShortcutsHelp, useGlobalShortcuts } from "@/components/ShortcutsHelp";
 import { useAgent } from "@/store/agent";
 
 export default function Home() {
@@ -22,6 +24,8 @@ export default function Home() {
   const [projectsFor, setProjectsFor] = useState<string | null>(null);
   const [skillsFor, setSkillsFor] = useState<string | null>(null);
   const [orchestrateOpen, setOrchestrateOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  useGlobalShortcuts(helpOpen, setHelpOpen);
 
   useEffect(() => {
     void (async () => {
@@ -42,7 +46,7 @@ export default function Home() {
 
   return (
     <>
-      <AppShell onOpenSettings={() => setSettingsOpen(true)}>
+      <AppShell onOpenSettings={() => setSettingsOpen(true)} onOpenHelp={() => setHelpOpen(true)}>
         <OrchestrationBanner />
         <div className="layout">
           <Sidebar
@@ -60,6 +64,8 @@ export default function Home() {
       {projectsFor && <ProjectsPanel panelId={projectsFor} onClose={() => setProjectsFor(null)} />}
       {skillsFor && <SkillsPanel panelId={skillsFor} onClose={() => setSkillsFor(null)} />}
       {orchestrateOpen && <OrchestratorModal onClose={() => setOrchestrateOpen(false)} />}
+      {helpOpen && <ShortcutsHelp onClose={() => setHelpOpen(false)} />}
+      <Toasts />
     </>
   );
 }

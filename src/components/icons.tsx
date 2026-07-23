@@ -138,6 +138,15 @@ const P = {
   ),
   question: <path d="M5.8 5.6a2.2 2.2 0 1 1 3.1 2.6c-.7.4-.9.8-.9 1.6M8 12.4h.01" />,
   stop: <rect x="4.4" y="4.4" width="7.2" height="7.2" rx="1" />,
+  sliders: (
+    <>
+      <path d="M2.4 4.6h11.2M2.4 11.4h11.2" />
+      <circle cx="6" cy="4.6" r="1.7" fill="var(--panel, #fff)" />
+      <circle cx="10" cy="11.4" r="1.7" fill="var(--panel, #fff)" />
+    </>
+  ),
+  expand: <path d="M9.6 2.4h4v4M13.2 2.8 9.4 6.6M6.4 13.6h-4v-4M2.8 13.2l3.8-3.8" />,
+  collapse: <path d="M13.6 6.4h-4v-4M9.9 6.1l3.7-3.7M2.4 9.6h4v4M6.1 9.9l-3.7 3.7" />,
   send: <path d="M2.4 8h10.4M9.4 4.4 13 8l-3.6 3.6" />,
   check: <path d="m3.2 8.6 3.2 3.2 6.4-7.6" />,
 } as const;

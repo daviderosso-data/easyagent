@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useAgent, type Item } from "@/store/agent";
 import { DiffView } from "@/components/DiffView";
+import { groupTranscript, type ToolItem } from "@/lib/transcript-groups";
 import { useT, useLang, labelTool } from "@/i18n";
 import { LogoMark } from "@/components/icons";
 
@@ -31,13 +32,33 @@ export function Transcript({ id }: { id: string }) {
   }
 
   return (
-    <div className="transcript">
-      {items.map((it) => (
-        <Row key={it.id + it.kind} item={it} />
-      ))}
+    <div className="transcript" role="log" aria-label={t("transcriptLabel")}>
+      {groupTranscript(items).map((b) =>
+        b.kind === "item" ? <Row key={b.item.id + b.item.kind} item={b.item} /> : <ToolGroup key={b.key} items={b.items} />,
+      )}
       {running && <div className="typing">{t("working")}</div>}
       <div ref={endRef} />
     </div>
+  );
+}
+
+/** A collapsed run of completed tool steps — one line instead of a wall. */
+function ToolGroup({ items }: { items: ToolItem[] }) {
+  const t = useT();
+  const hasErr = items.some((i) => i.isError);
+  return (
+    <details className="tool-group">
+      <summary className="tool-head">
+        <span className="tool-dot" />
+        <span className="tool-label">{t("toolStepsDone").replace("{n}", String(items.length))}</span>
+        {hasErr && <span className="tool-err">!</span>}
+      </summary>
+      <div className="tool-group-body">
+        {items.map((it) => (
+          <ToolCard key={it.id} item={it} />
+        ))}
+      </div>
+    </details>
   );
 }
 

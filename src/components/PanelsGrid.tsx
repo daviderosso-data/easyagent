@@ -11,6 +11,7 @@ export function PanelsGrid({ onChangeFolder }: { onChangeFolder: (id: string) =>
   const activePanel = useAgent((s) => s.activePanel);
   const setActive = useAgent((s) => s.setActivePanel);
   const viewMode = useAgent((s) => s.viewMode);
+  const focusPanel = useAgent((s) => s.focusPanel);
 
   // Only the active pinned project's sessions are on screen; the others keep
   // running in the background (their store state updates regardless).
@@ -42,6 +43,15 @@ export function PanelsGrid({ onChangeFolder }: { onChangeFolder: (id: string) =>
         <div className="panels-grid panels-1">
           {current && <SessionPanel key={current} id={current} onChangeFolder={onChangeFolder} />}
         </div>
+      </div>
+    );
+  }
+
+  // Focus mode: one panel temporarily fills the grid; the others keep running.
+  if (focusPanel && visible.includes(focusPanel)) {
+    return (
+      <div className="panels-grid panels-1">
+        <SessionPanel key={focusPanel} id={focusPanel} onChangeFolder={onChangeFolder} />
       </div>
     );
   }

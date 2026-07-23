@@ -42,8 +42,16 @@ export function SessionPanel({ id, onChangeFolder }: { id: string; onChangeFolde
   const refreshPreview = useAgent((s) => s.refreshPreview);
   const color = useAgent((s) => s.sessions[id]?.color);
   const setPanelColor = useAgent((s) => s.setPanelColor);
+  const viewMode = useAgent((s) => s.viewMode);
+  const isFocused = useAgent((s) => s.focusPanel === id);
+  const setFocusPanel = useAgent((s) => s.setFocusPanel);
+  const pendingCount = useAgent((s) => s.sessions[id]?.pending.length ?? 0);
+  const costUsd = useAgent((s) =>
+    (s.sessions[id]?.items ?? []).reduce((sum, it) => (it.kind === "done" ? sum + it.costUsd : sum), 0),
+  );
   const [historyOpen, setHistoryOpen] = useState(false);
   const [colorOpen, setColorOpen] = useState(false);
+  const [tuneOpen, setTuneOpen] = useState(false);
   const placeholderRef = useRef<Window | null>(null);
 
   const folderName = cwd ? cwd.split("/").filter(Boolean).pop() : "—";
@@ -54,6 +62,10 @@ export function SessionPanel({ id, onChangeFolder }: { id: string; onChangeFolde
   const providerInfo = providers.find((p) => p.id === provider);
   const models = providerInfo?.models ?? MODELS;
   const effortSupported = providerInfo?.capabilities.effort ?? provider === "claude";
+  const engineLabel = providerInfo?.label ?? (provider === "claude" ? "Claude" : provider);
+  const modelLabel = selModel ? (models.find((m) => m.id === selModel)?.label ?? selModel) : t("optDefault");
+  const canFocus = multi && viewMode === "split";
+  const toggleFocus = () => canFocus && setFocusPanel(isFocused ? "" : id);
 
   // With 5+ panels the grid scrolls — bring the activated panel into view.
   useEffect(() => {
@@ -100,7 +112,7 @@ export function SessionPanel({ id, onChangeFolder }: { id: string; onChangeFolde
       style={accent ? ({ "--panel-accent": accent } as React.CSSProperties) : undefined}
       onMouseDown={() => setActive(id)}
     >
-      <div className="panel-head">
+      <div className="panel-head" onDoubleClick={toggleFocus}>
         <span className="color-wrap">
           <button
             className="color-dot-btn"
@@ -147,6 +159,7 @@ export function SessionPanel({ id, onChangeFolder }: { id: string; onChangeFolde
             className="hdr-select"
             value={provider}
             title={t("engineTip")}
+            aria-label={t("engineTip")}
             disabled={running}
             onChange={(e) => setProvider(id, e.target.value)}
           >
@@ -158,35 +171,54 @@ export function SessionPanel({ id, onChangeFolder }: { id: string; onChangeFolde
           </select>
         )}
 
-        <select
-          className="hdr-select"
-          value={selModel ?? ""}
-          title={t("modelTip")}
-          disabled={running}
-          onChange={(e) => setModel(id, e.target.value || null)}
-        >
-          {models.map((m) => (
-            <option key={m.id ?? "default"} value={m.id ?? ""}>
-              {m.id ? m.label : t("optDefault")}
-            </option>
-          ))}
-        </select>
-
-        {effortSupported && (
-          <select
-            className="hdr-select"
-            value={effort ?? ""}
-            title={t("effortTip")}
-            disabled={running}
-            onChange={(e) => setEffort(id, (e.target.value || undefined) as Effort | undefined)}
+        {/* Model & reasoning live behind one button — defaults over config. */}
+        <span className="color-wrap">
+          <button
+            className={`icon-btn icon-btn-sm ${selModel || effort ? "icon-btn-set" : ""}`}
+            title={t("tuneTip")}
+            aria-label={t("tuneTip")}
+            aria-expanded={tuneOpen}
+            onClick={() => setTuneOpen((v) => !v)}
           >
-            {EFFORTS.map((ef) => (
-              <option key={ef.id || "default"} value={ef.id}>
-                {t(ef.key)}
-              </option>
-            ))}
-          </select>
-        )}
+            <Icon name="sliders" size={13} />
+          </button>
+          {tuneOpen && (
+            <div className="hdr-pop" onMouseLeave={() => setTuneOpen(false)}>
+              <label className="field">
+                <span className="field-label">{t("fieldModel")}</span>
+                <select
+                  className="hdr-select hdr-select-full"
+                  value={selModel ?? ""}
+                  disabled={running}
+                  onChange={(e) => setModel(id, e.target.value || null)}
+                >
+                  {models.map((m) => (
+                    <option key={m.id ?? "default"} value={m.id ?? ""}>
+                      {m.id ? m.label : t("optDefault")}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {effortSupported && (
+                <label className="field">
+                  <span className="field-label">{t("fieldEffort")}</span>
+                  <select
+                    className="hdr-select hdr-select-full"
+                    value={effort ?? ""}
+                    disabled={running}
+                    onChange={(e) => setEffort(id, (e.target.value || undefined) as Effort | undefined)}
+                  >
+                    {EFFORTS.map((ef) => (
+                      <option key={ef.id || "default"} value={ef.id}>
+                        {t(ef.key)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+            </div>
+          )}
+        </span>
 
         <span className="panel-head-spacer" />
         <button className="icon-btn icon-btn-sm" disabled={!cwd} title={t("historyBtnTip")} aria-label={t("historyBtnTip")} onClick={() => setHistoryOpen(true)}>
@@ -195,6 +227,16 @@ export function SessionPanel({ id, onChangeFolder }: { id: string; onChangeFolde
         <button className="icon-btn icon-btn-sm" disabled={!cwd} title={t("previewTip")} aria-label={t("previewTip")} onClick={onPreviewClick}>
           <Icon name="play" size={13} />
         </button>
+        {canFocus && (
+          <button
+            className="icon-btn icon-btn-sm"
+            title={isFocused ? t("exitFocusTip") : t("focusTip")}
+            aria-label={isFocused ? t("exitFocusTip") : t("focusTip")}
+            onClick={toggleFocus}
+          >
+            <Icon name={isFocused ? "collapse" : "expand"} size={13} />
+          </button>
+        )}
         {multi && (
           <button className="icon-btn icon-btn-sm" onClick={() => removePanel(id)} aria-label={t("close")}>
             <Icon name="x" size={13} />
@@ -219,6 +261,22 @@ export function SessionPanel({ id, onChangeFolder }: { id: string; onChangeFolde
           </div>
         )}
       </div>
+      {cwd && (
+        <div className="panel-status">
+          <span className={`status-dot ${running ? "status-run" : pendingCount ? "status-wait" : "status-idle"}`} />
+          <span>{running ? t("working") : pendingCount ? t("needsOk") : t("ready")}</span>
+          <span className="panel-status-sep">·</span>
+          <span>{engineLabel}</span>
+          <span className="panel-status-sep">·</span>
+          <span>{modelLabel}</span>
+          {costUsd > 0 && (
+            <>
+              <span className="panel-status-sep">·</span>
+              <span title={t("estimated")}>~${costUsd.toFixed(2)}</span>
+            </>
+          )}
+        </div>
+      )}
       <ApprovalModal id={id} />
       {historyOpen && <HistoryPanel id={id} onClose={() => setHistoryOpen(false)} />}
     </section>

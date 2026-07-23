@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAgent } from "@/store/agent";
 import { useT } from "@/i18n";
 import { CommandPalette } from "@/components/CommandPalette";
@@ -19,6 +19,15 @@ export function Composer({ id }: { id: string }) {
   const t = useT();
   // The palette lists Claude Code slash commands — hide it on engines without them.
   const slashCommands = providers.find((p) => p.id === provider)?.capabilities.slashCommands ?? provider === "claude";
+
+  // Global Cmd/Ctrl+K targets the active panel's palette.
+  const paletteReq = useAgent((s) => s.paletteRequest);
+  const handledNonce = useRef(0);
+  useEffect(() => {
+    if (!paletteReq || paletteReq.panelId !== id || paletteReq.nonce === handledNonce.current) return;
+    handledNonce.current = paletteReq.nonce;
+    if (!running && cwd && slashCommands) setPaletteOpen(true);
+  }, [paletteReq, id, running, cwd, slashCommands]);
 
   const presets: { label: string; prompt: string }[] = [
     { label: t("presetExplain"), prompt: "Explain what this project does and how it's organized, in simple terms." },
