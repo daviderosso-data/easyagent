@@ -8,7 +8,7 @@
 import { spawn } from "node:child_process";
 import type { AgentEvent } from "@/lib/agent-events";
 import type { SecurityConfig } from "@/lib/settings";
-import { authError, engineUnavailable, genericError } from "@/server/i18n-server";
+import { authError, engineUnavailable, genericError, rateLimitError, RATE_LIMIT_RE } from "@/server/i18n-server";
 import type { EngineStatus, ProviderModel, TurnRequest } from "@/server/providers/types";
 import { engineEnv, resolveBin, runQuick, streamLines } from "@/server/providers/cli-utils";
 
@@ -227,6 +227,8 @@ export async function runCodexTurn(req: TurnRequest): Promise<void> {
       for (const e of mapCodexEvent(ev, ctx)) {
         if (e.type === "error" && /401|unauthorized|not logged in|login/i.test(e.message)) {
           emit({ type: "error", message: authError(lang) });
+        } else if (e.type === "error" && RATE_LIMIT_RE.test(e.message)) {
+          emit({ type: "error", message: rateLimitError(lang), code: "rate-limit" });
         } else {
           emit(e);
         }
@@ -239,6 +241,8 @@ export async function runCodexTurn(req: TurnRequest): Promise<void> {
       send({ type: "done", sessionId: ctx.sessionId, isError: false, subtype: "aborted", numTurns: 0, durationMs: 0, totalCostUsd: 0, usage: null });
     } else if (/401|unauthorized|not logged in/i.test(ctx.lastError)) {
       send({ type: "error", message: authError(lang) });
+    } else if (RATE_LIMIT_RE.test(ctx.lastError)) {
+      send({ type: "error", message: rateLimitError(lang), code: "rate-limit" });
     } else {
       send({ type: "error", message: genericError(lang) });
     }

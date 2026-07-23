@@ -78,6 +78,8 @@ export interface Session {
   mcpStatus?: { name: string; status: string }[];
   /** Skill names loaded for the last turn. */
   skills?: string[];
+  /** Last turn died on a usage limit — offer switching engine (P6.9.6). */
+  rateLimited?: boolean;
 }
 
 export type PreviewState = "idle" | "installing" | "starting" | "running" | "error";
@@ -174,6 +176,7 @@ interface AppState {
 
   setToken: (t: string) => void;
   setFocusPanel: (id: string) => void;
+  clearRateLimit: (id: string) => void;
   pushToast: (key: MsgKey) => void;
   dismissToast: (id: number) => void;
   requestPalette: () => void;
@@ -271,6 +274,8 @@ export const useAgent = create<AppState>((set, get) => ({
   setToken: (token) => set({ token }),
 
   setFocusPanel: (id) => set({ focusPanel: id }),
+
+  clearRateLimit: (id) => updateSession(id, (s) => ({ ...s, rateLimited: false })),
 
   pushToast: (key) => {
     const message = messages[get().lang][key] ?? messages.en[key];
@@ -634,7 +639,7 @@ export const useAgent = create<AppState>((set, get) => ({
         ? s
         : // A session id belongs to its engine — switching engines starts a
           // fresh conversation (the visible transcript stays).
-          { ...s, provider, selModel: null, effort: undefined, sessionId: null },
+          { ...s, provider, selModel: null, effort: undefined, sessionId: null, rateLimited: false },
     );
     scheduleSaveWorkspace();
   },
@@ -769,6 +774,7 @@ export const useAgent = create<AppState>((set, get) => ({
     updateSession(id, (s) => ({
       ...s,
       items: [...s.items, { kind: "user", id: nid(), text: prompt }],
+      rateLimited: false,
       running: true,
       pending: [],
       abortController,
@@ -1002,7 +1008,11 @@ function reduce(id: string, e: AgentEvent) {
       }
       break;
     case "error":
-      updateSession(id, (s) => ({ ...s, items: [...s.items, { kind: "error", id: nid(), message: e.message }] }));
+      updateSession(id, (s) => ({
+        ...s,
+        items: [...s.items, { kind: "error", id: nid(), message: e.message }],
+        ...(e.code === "rate-limit" ? { rateLimited: true } : {}),
+      }));
       maybeNotify(id, "turnError");
       break;
   }

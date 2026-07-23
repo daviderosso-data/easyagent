@@ -62,7 +62,7 @@ export type AgentEvent =
       totalCostUsd: number;
       usage: unknown;
     }
-  | { type: "error"; message: string };
+  | { type: "error"; message: string; code?: "rate-limit" };
 
 export interface ApproveRequest {
   turnId: string;

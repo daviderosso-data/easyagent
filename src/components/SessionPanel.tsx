@@ -287,6 +287,7 @@ export function SessionPanel({ id, onChangeFolder }: { id: string; onChangeFolde
         {cwd ? (
           <>
             <Transcript id={id} />
+            <FailoverBar id={id} />
             <Composer id={id} />
           </>
         ) : (
@@ -319,6 +320,36 @@ export function SessionPanel({ id, onChangeFolder }: { id: string; onChangeFolde
       <ApprovalModal id={id} />
       {historyOpen && <HistoryPanel id={id} onClose={() => setHistoryOpen(false)} />}
     </section>
+  );
+}
+
+/** P6.9.6 — after a rate-limit error, offer the other usable engines. The
+ *  switch keeps the visible transcript but starts a fresh conversation. */
+function FailoverBar({ id }: { id: string }) {
+  const t = useT();
+  const rateLimited = useAgent((s) => s.sessions[id]?.rateLimited ?? false);
+  const running = useAgent((s) => s.sessions[id]?.running ?? false);
+  const provider = useAgent((s) => s.sessions[id]?.provider ?? "claude");
+  const providers = useAgent((s) => s.providers);
+  const setProvider = useAgent((s) => s.setProvider);
+  const clearRateLimit = useAgent((s) => s.clearRateLimit);
+
+  if (!rateLimited || running) return null;
+  const options = providers.filter((p) => p.id !== provider && p.status.installed && p.status.loggedIn !== false);
+  if (!options.length) return null;
+
+  return (
+    <div className="failover-bar" role="status">
+      <span>{t("failoverMsg")}</span>
+      {options.map((p) => (
+        <button key={p.id} className="btn btn-soft btn-sm" onClick={() => setProvider(id, p.id)} title={t("failoverNote")}>
+          {p.label}
+        </button>
+      ))}
+      <button className="icon-btn icon-btn-sm" onClick={() => clearRateLimit(id)} aria-label={t("dismiss")}>
+        <Icon name="x" size={12} />
+      </button>
+    </div>
   );
 }
 

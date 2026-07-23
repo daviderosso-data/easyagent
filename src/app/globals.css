@@ -2893,3 +2893,23 @@ textarea:focus-visible,
   padding: 1px 5px;
   user-select: all;
 }
+
+/* P6.9.6 — engine failover bar */
+.failover-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 0 auto;
+  width: 100%;
+  max-width: 880px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--ds-radius-md);
+  background: var(--panel);
+}
+.failover-bar > .icon-btn {
+  margin-left: auto;
+}

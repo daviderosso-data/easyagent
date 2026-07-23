@@ -35,6 +35,15 @@ export function engineUnavailable(label: string, lang: Lang): string {
     : `${label} is not available on this computer. Install (or start) it and try again.`;
 }
 
+/** Matches provider messages that mean "you hit your usage limit". */
+export const RATE_LIMIT_RE = /rate.?limit|429|too many requests|usage limit|quota|out of (?:usage|credits)/i;
+
+export function rateLimitError(lang: Lang): string {
+  return lang === "it"
+    ? "L'engine ha raggiunto il limite di utilizzo. Riprova più tardi o continua con un altro engine."
+    : "The engine hit its usage limit. Try again later or continue with another engine.";
+}
+
 export function genericError(lang: Lang): string {
   return lang === "it"
     ? "Si è verificato un errore durante l'esecuzione. Riprova."

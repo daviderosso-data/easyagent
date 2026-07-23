@@ -439,6 +439,10 @@ export const messages = {
     docFixLogin: "Not signed in — use the Sign in button above.",
     docFixOllama: "Ollama isn't running — open the Ollama app or run:",
     docRecheck: "Check again",
+
+    // P6.9.6 failover
+    failoverMsg: "Engine at its limit — continue with:",
+    failoverNote: "The new engine starts without the previous context (the transcript stays visible).",
   },
   it: {
     brand: "easyagent",
@@ -868,6 +872,10 @@ export const messages = {
     docFixLogin: "Non collegato — usa il bottone Accedi qui sopra.",
     docFixOllama: "Ollama non è attivo — apri l'app Ollama o esegui:",
     docRecheck: "Ricontrolla",
+
+    // P6.9.6 failover
+    failoverMsg: "Engine al limite — continua con:",
+    failoverNote: "Il nuovo engine riparte senza il contesto precedente (la conversazione resta visibile).",
   },
 } satisfies Record<Lang, Record<string, string>>;
 

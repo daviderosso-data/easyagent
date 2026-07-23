@@ -6,7 +6,7 @@ import { query } from "@anthropic-ai/claude-agent-sdk";
 import { randomUUID } from "node:crypto";
 import { behaviorToMode } from "@/server/safety-presets";
 import { makeClassifier, buildRules } from "@/server/command-policy";
-import { blockedReason, authError, genericError } from "@/server/i18n-server";
+import { blockedReason, authError, genericError, rateLimitError, RATE_LIMIT_RE } from "@/server/i18n-server";
 import { buildAgentEnv } from "@/server/security";
 import { saveRateLimits } from "@/server/usage-store";
 import { buildMcpConfig, recordMcpStatus } from "@/server/mcp-store";
@@ -265,6 +265,8 @@ export async function runClaudeTurn(params: TurnRequest): Promise<void> {
       } else {
         if (/api key|authentication|401|unauthorized|not logged in|not signed in/i.test(msg)) {
           send({ type: "error", message: authError(lang) });
+        } else if (RATE_LIMIT_RE.test(msg)) {
+          send({ type: "error", message: rateLimitError(lang), code: "rate-limit" });
         } else {
           console.error("[claude-runner] turn error:", msg);
           send({ type: "error", message: genericError(lang) });
