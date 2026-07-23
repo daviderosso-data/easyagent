@@ -2921,3 +2921,14 @@ textarea:focus-visible,
   gap: 8px;
   margin-top: 12px;
 }
+
+/* P6.9.8 — open PR form */
+.pr-box {
+  flex-direction: column;
+  align-items: stretch;
+}
+.pr-body {
+  resize: vertical;
+  min-height: 70px;
+  font-family: inherit;
+}

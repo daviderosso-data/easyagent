@@ -450,6 +450,16 @@ export const messages = {
     expAssistant: "Assistant",
     expTool: "Action",
     expCost: "Cost",
+
+    // P6.9.8 open PR
+    gitOpenPr: "Open PR",
+    prTitleLbl: "Title",
+    prBodyLbl: "Description",
+    prCreate: "Create the PR",
+    prDone: "PR opened:",
+    prNoGh: "GitHub CLI not found — install it with: brew install gh",
+    prDirty: "Commit your changes first (box above).",
+    prFailed: "Couldn't open the PR.",
   },
   it: {
     brand: "easyagent",
@@ -890,6 +900,16 @@ export const messages = {
     expAssistant: "Assistente",
     expTool: "Azione",
     expCost: "Costo",
+
+    // P6.9.8 apri PR
+    gitOpenPr: "Apri PR",
+    prTitleLbl: "Titolo",
+    prBodyLbl: "Descrizione",
+    prCreate: "Crea la PR",
+    prDone: "PR aperta:",
+    prNoGh: "GitHub CLI non trovato — installalo con: brew install gh",
+    prDirty: "Prima fai il commit delle modifiche (riquadro qui sopra).",
+    prFailed: "Impossibile aprire la PR.",
   },
 } satisfies Record<Lang, Record<string, string>>;
 
