@@ -5,6 +5,7 @@ import { useAgent } from "@/store/agent";
 import { useT, useLang } from "@/i18n";
 import { DiffText } from "@/components/DiffView";
 import { Icon } from "@/components/icons";
+import { sessionToHtml, sessionToMarkdown } from "@/lib/export-session";
 
 interface SavePoint {
   hash: string;
@@ -42,6 +43,29 @@ export function HistoryPanel({ id, onClose }: { id: string; onClose: () => void 
   const cwd = useAgent((s) => s.sessions[id]?.cwd ?? "");
   const running = useAgent((s) => s.sessions[id]?.running ?? false);
   const bumpFsRefresh = useAgent((s) => s.bumpFsRefresh);
+  const items = useAgent((s) => s.sessions[id]?.items ?? []);
+  const provider = useAgent((s) => s.sessions[id]?.provider ?? "claude");
+  const selModel = useAgent((s) => s.sessions[id]?.selModel ?? null);
+  const providers = useAgent((s) => s.providers);
+
+  // P6.9.7 — download the transcript as a self-contained document.
+  const doExport = (fmt: "md" | "html") => {
+    const folder = cwd.split("/").filter(Boolean).pop() ?? "session";
+    const meta = {
+      project: folder,
+      engine: providers.find((p) => p.id === provider)?.label ?? provider,
+      model: selModel ?? t("optDefault"),
+      date: new Date().toLocaleString(),
+      labels: { you: t("expYou"), assistant: t("expAssistant"), tool: t("expTool"), cost: t("expCost") },
+    };
+    const content = fmt === "md" ? sessionToMarkdown(items, meta) : sessionToHtml(items, meta);
+    const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([content], { type: fmt === "md" ? "text/markdown" : "text/html" }));
+    a.download = `${folder}-${stamp}.${fmt}`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
 
   const [points, setPoints] = useState<SavePoint[] | null>(null);
   const [gitMissing, setGitMissing] = useState(false);
@@ -209,6 +233,16 @@ export function HistoryPanel({ id, onClose }: { id: string; onClose: () => void 
                   ))}
                 </div>
               )}
+
+              <div className="export-row">
+                <span className="settings-sub">{t("exportTitle")}</span>
+                <button className="btn btn-soft btn-sm" disabled={!items.length} onClick={() => doExport("md")}>
+                  Markdown
+                </button>
+                <button className="btn btn-soft btn-sm" disabled={!items.length} onClick={() => doExport("html")}>
+                  HTML
+                </button>
+              </div>
 
               {!gitMissing && (
                 <>

@@ -443,6 +443,13 @@ export const messages = {
     // P6.9.6 failover
     failoverMsg: "Engine at its limit — continue with:",
     failoverNote: "The new engine starts without the previous context (the transcript stays visible).",
+
+    // P6.9.7 export
+    exportTitle: "Export the conversation:",
+    expYou: "You",
+    expAssistant: "Assistant",
+    expTool: "Action",
+    expCost: "Cost",
   },
   it: {
     brand: "easyagent",
@@ -876,6 +883,13 @@ export const messages = {
     // P6.9.6 failover
     failoverMsg: "Engine al limite — continua con:",
     failoverNote: "Il nuovo engine riparte senza il contesto precedente (la conversazione resta visibile).",
+
+    // P6.9.7 export
+    exportTitle: "Esporta la conversazione:",
+    expYou: "Tu",
+    expAssistant: "Assistente",
+    expTool: "Azione",
+    expCost: "Costo",
   },
 } satisfies Record<Lang, Record<string, string>>;
 

@@ -2913,3 +2913,11 @@ textarea:focus-visible,
 .failover-bar > .icon-btn {
   margin-left: auto;
 }
+
+/* P6.9.7 — export row in the history panel */
+.export-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
