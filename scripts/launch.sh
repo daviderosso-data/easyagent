@@ -43,13 +43,21 @@ if ! node -e 'var v=process.versions.node.split(".").map(Number);process.exit(v[
   pause_and_exit 1
 fi
 
-if [ ! -d node_modules ]; then
-  echo "> First run: installing dependencies (this may take a few minutes)..."
+if [ ! -d node_modules ] || [ package.json -nt node_modules ]; then
+  echo "> Installing dependencies (this may take a few minutes)..."
   npm install || { echo "!! Dependency installation failed."; pause_and_exit 1; }
 fi
 
-if [ ! -d .next ]; then
-  echo "> Preparing the app (first run only)..."
+# Rebuild when there is no build yet OR the code is newer than the build
+# (e.g. after a git pull) -- a stale build silently hides new features.
+NEED_BUILD=0
+if [ ! -d .next ] || [ ! -f .next/BUILD_ID ]; then
+  NEED_BUILD=1
+elif [ -d .git ] && [ "$(git -C "${APP_DIR}" log -1 --format=%ct 2>/dev/null || echo 0)" -gt "$(stat -f %m .next/BUILD_ID 2>/dev/null || stat -c %Y .next/BUILD_ID 2>/dev/null || echo 0)" ]; then
+  NEED_BUILD=1
+fi
+if [ "${NEED_BUILD}" = "1" ]; then
+  echo "> Preparing the app (first run or after an update)..."
   npm run build || { echo "!! App build failed."; pause_and_exit 1; }
 fi
 
