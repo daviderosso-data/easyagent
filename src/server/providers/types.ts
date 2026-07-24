@@ -11,7 +11,7 @@ import type { Turn } from "@/server/session-manager";
 
 /** Engines the app can drive — see docs/providers.md for the spike findings.
  *  ("gemini" is reserved: postponed by owner decision 2026-07-21.) */
-export type ProviderId = "claude" | "codex" | "grok" | "ollama" | "gemini";
+export type ProviderId = "claude" | "codex" | "grok" | "copilot" | "ollama" | "gemini";
 
 /** One turn, as handed to a provider by the neutral pipeline. */
 export interface TurnRequest {

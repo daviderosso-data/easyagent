@@ -3,11 +3,12 @@
 import type { AgentProvider, ProviderId } from "@/server/providers/types";
 import { claudeProvider } from "@/server/providers/claude";
 import { codexProvider } from "@/server/providers/codex";
+import { copilotProvider } from "@/server/providers/copilot";
 import { grokProvider } from "@/server/providers/grok";
 import { ollamaProvider } from "@/server/providers/ollama";
 
 const registry = new Map<ProviderId, AgentProvider>(
-  [claudeProvider, codexProvider, grokProvider, ollamaProvider].map((p) => [p.id, p]),
+  [claudeProvider, codexProvider, grokProvider, copilotProvider, ollamaProvider].map((p) => [p.id, p]),
 );
 
 export const DEFAULT_PROVIDER_ID: ProviderId = "claude";

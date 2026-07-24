@@ -292,7 +292,7 @@ interface EngineDiag {
   path: string | null;
   version: string | null;
   loggedIn: boolean | null;
-  fix: { kind: "install" | "login" | "start"; command?: string } | null;
+  fix: { kind: "install" | "login" | "start" | "auth"; command?: string } | null;
 }
 
 /** P6.9.5 — per-engine health check with the fix for whatever is broken. */
@@ -342,6 +342,11 @@ function EngineDoctor({ headers }: { headers: () => Record<string, string> }) {
                   </p>
                 )}
                 {e.fix?.kind === "login" && <p className="settings-sub">{t("docFixLogin")}</p>}
+                {e.fix?.kind === "auth" && (
+                  <p className="settings-sub">
+                    {t("docFixAuth")} <code>{e.fix.command}</code>
+                  </p>
+                )}
                 {e.fix?.kind === "start" && (
                   <p className="settings-sub">
                     {t("docFixOllama")} <code>{e.fix.command}</code>

@@ -51,6 +51,15 @@ Also 2026-07-23: the launcher now rebuilds when the code is newer than the
 build — a stale `.next` was silently hiding new features (how the GPT-5.6
 models stayed invisible).
 
+## P6.10 — Copilot engine (shipped 2026-07-24)
+
+Fifth engine: GitHub Copilot CLI via the user's GitHub login (no API key) —
+the best surviving login-based CLI per the 2026-07-24 research (Qwen/iFlow
+shut down, Amazon Q→Kiro closed to new signups and its ToS forbids wrappers,
+Gemini still forbidden). Free plan works (monthly AI-credits allotment);
+multi-vendor models (Claude/GPT-5.6/Kimi) parsed live from the CLI. See
+docs/providers.md for the spike notes.
+
 ## P7 — Auth/TLS (next major phase)
 
 App-level login and encrypted transport. Closes the "no app auth" gap and is a
