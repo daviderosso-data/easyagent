@@ -241,14 +241,33 @@ function EngineAccounts({ headers }: { headers: () => Record<string, string> }) 
   const providers = useAgent((s) => s.providers);
   const loadProviders = useAgent((s) => s.loadProviders);
   const [busy, setBusy] = useState<string | null>(null);
+  // GitHub device flow (Copilot): one-time code the user must enter in the browser.
+  const [device, setDevice] = useState<{ id: string; url: string; code: string } | null>(null);
 
   const engines = providers.filter((p) => p.hasAccount && p.id !== "claude");
   if (!engines.length) return null;
 
   const act = async (id: string, action: "login" | "logout") => {
     setBusy(id);
+    setDevice(null);
     try {
-      await fetch(`/api/account/${action}?provider=${encodeURIComponent(id)}`, { method: "POST", headers: headers() });
+      const r = await fetch(`/api/account/${action}?provider=${encodeURIComponent(id)}`, { method: "POST", headers: headers() });
+      const data = await r.json().catch(() => null);
+      if (data?.pending && data.userCode) {
+        setDevice({ id, url: data.verificationUrl || "https://github.com/login/device", code: data.userCode });
+        window.open(data.verificationUrl || "https://github.com/login/device", "_blank");
+        // Poll until the user approves in the browser (or ~3 minutes pass).
+        for (let i = 0; i < 60; i++) {
+          await new Promise((res) => setTimeout(res, 3000));
+          try {
+            const s = await fetch(`/api/account/status?provider=${encodeURIComponent(id)}`, { headers: headers() });
+            if ((await s.json())?.loggedIn) break;
+          } catch {
+            /* keep polling */
+          }
+        }
+        setDevice(null);
+      }
     } catch {
       /* row state refreshes below either way */
     }
@@ -262,21 +281,40 @@ function EngineAccounts({ headers }: { headers: () => Record<string, string> }) 
         <b>{t("otherEngines")}</b>
       </p>
       {engines.map((p) => (
-        <div className="row-actions" key={p.id}>
-          <span style={{ minWidth: "10rem" }}>{p.label}</span>
-          {!p.status.installed ? (
-            <span className="settings-sub">{t("notInstalled")}</span>
-          ) : p.status.loggedIn ? (
-            <>
-              <span className="settings-sub">✓ {t("connected")}</span>
-              <button className="btn btn-ghost" disabled={!!busy} onClick={() => act(p.id, "logout")}>
-                {t("logoutBtn")}
+        <div key={p.id}>
+          <div className="row-actions">
+            <span style={{ minWidth: "10rem" }}>{p.label}</span>
+            {!p.status.installed ? (
+              <span className="settings-sub">{t("notInstalled")}</span>
+            ) : p.status.loggedIn ? (
+              <>
+                <span className="settings-sub">✓ {t("connected")}</span>
+                {p.id === "copilot" ? (
+                  // No logout exists in the Copilot CLI — switching accounts
+                  // re-runs the device flow, which overwrites the credential.
+                  <button className="btn btn-ghost" disabled={!!busy} onClick={() => act(p.id, "login")}>
+                    {t("switchBtn")}
+                  </button>
+                ) : (
+                  <button className="btn btn-ghost" disabled={!!busy} onClick={() => act(p.id, "logout")}>
+                    {t("logoutBtn")}
+                  </button>
+                )}
+              </>
+            ) : (
+              <button className="btn btn-soft" disabled={!!busy} onClick={() => act(p.id, "login")}>
+                {busy === p.id ? t("loginHint") : t("loginBtn")}
               </button>
-            </>
-          ) : (
-            <button className="btn btn-soft" disabled={!!busy} onClick={() => act(p.id, "login")}>
-              {busy === p.id ? t("loginHint") : t("loginBtn")}
-            </button>
+            )}
+          </div>
+          {device?.id === p.id && (
+            <p className="settings-sub device-flow">
+              {t("devFlowIntro")}{" "}
+              <a href={device.url} target="_blank" rel="noreferrer">
+                {device.url.replace(/^https?:\/\//, "")}
+              </a>{" "}
+              {t("devFlowCode")} <code className="device-code">{device.code}</code>
+            </p>
           )}
         </div>
       ))}

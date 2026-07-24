@@ -75,9 +75,10 @@ export interface StreamRunParams {
 }
 
 /** Spawn a CLI and stream its stdout line by line. Resolves when the process
- *  exits; on signal abort the whole process group is killed (engines spawn
- *  their own children). Never rejects. */
-export function streamLines(params: StreamRunParams): Promise<{ code: number | null; aborted: boolean }> {
+ *  exits (with the stderr tail, for post-mortem classification); on signal
+ *  abort the whole process group is killed (engines spawn their own
+ *  children). Never rejects. */
+export function streamLines(params: StreamRunParams): Promise<{ code: number | null; aborted: boolean; stderrTail: string }> {
   const { cmd, args, cwd, env, signal, onLine } = params;
   return new Promise((resolvePromise) => {
     const child = spawn(cmd, args, { cwd, env, stdio: ["ignore", "pipe", "pipe"] as const, detached: true });
@@ -113,7 +114,7 @@ export function streamLines(params: StreamRunParams): Promise<{ code: number | n
 
     child.on("error", () => {
       signal.removeEventListener("abort", kill);
-      resolvePromise({ code: null, aborted: signal.aborted });
+      resolvePromise({ code: null, aborted: signal.aborted, stderrTail });
     });
     child.on("close", (code) => {
       if (buf.trim()) onLine(buf.trim());
@@ -121,7 +122,7 @@ export function streamLines(params: StreamRunParams): Promise<{ code: number | n
       if (code !== 0 && !signal.aborted && stderrTail.trim()) {
         console.error(`[${cmd}] exited ${code}: ${stderrTail.trim().slice(-500)}`);
       }
-      resolvePromise({ code, aborted: signal.aborted });
+      resolvePromise({ code, aborted: signal.aborted, stderrTail });
     });
   });
 }

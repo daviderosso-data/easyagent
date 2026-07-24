@@ -1,5 +1,13 @@
 import type { AgentProvider } from "@/server/providers/types";
-import { copilotModels, copilotStatus, runCopilotTurn } from "@/server/providers/copilot/runner";
+import {
+  copilotAccountStatus,
+  copilotLogout,
+  copilotModels,
+  copilotStartLogin,
+  copilotStatus,
+  copilotWaitForLogin,
+  runCopilotTurn,
+} from "@/server/providers/copilot/runner";
 
 export const copilotProvider: AgentProvider = {
   id: "copilot",
@@ -16,6 +24,10 @@ export const copilotProvider: AgentProvider = {
   runTurn: runCopilotTurn,
   models: copilotModels,
   status: copilotStatus,
-  // No account facet: login comes from the user's gh CLI (or `copilot login`
-  // run once in a terminal) — the Engine doctor explains whichever is missing.
+  account: {
+    status: copilotAccountStatus,
+    startLogin: copilotStartLogin, // GitHub device flow: UI shows code + URL
+    waitForLogin: copilotWaitForLogin,
+    logout: copilotLogout, // no CLI logout exists — switching = re-login
+  },
 };

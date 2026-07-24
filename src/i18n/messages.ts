@@ -440,6 +440,8 @@ export const messages = {
     docFixOllama: "Ollama isn't running — open the Ollama app or run:",
     docFixAuth: "Not connected — in a terminal, run:",
     docRecheck: "Check again",
+    devFlowIntro: "To connect, open",
+    devFlowCode: "and enter this code:",
 
     // P6.9.6 failover
     failoverMsg: "Engine at its limit — continue with:",
@@ -901,6 +903,8 @@ export const messages = {
     docFixOllama: "Ollama non è attivo — apri l'app Ollama o esegui:",
     docFixAuth: "Non collegato — in un terminale esegui:",
     docRecheck: "Ricontrolla",
+    devFlowIntro: "Per collegarti apri",
+    devFlowCode: "e inserisci questo codice:",
 
     // P6.9.6 failover
     failoverMsg: "Engine al limite — continua con:",

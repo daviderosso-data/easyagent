@@ -6,10 +6,11 @@
 // scrubbed by engineEnv, so credentials only reach the subprocess explicitly.
 // Verified live on 1.0.74/1.0.75 (2026-07-24) — see docs/providers.md.
 
+import { spawn, type ChildProcess } from "node:child_process";
 import type { AgentEvent } from "@/lib/agent-events";
 import type { SecurityConfig } from "@/lib/settings";
-import { engineUnavailable, genericError, authError, rateLimitError, RATE_LIMIT_RE } from "@/server/i18n-server";
-import type { EngineStatus, ProviderModel, TurnRequest } from "@/server/providers/types";
+import { engineUnavailable, genericError, authError, modelUnavailableError, rateLimitError, RATE_LIMIT_RE } from "@/server/i18n-server";
+import type { AccountStatus, EngineStatus, ProviderModel, TurnRequest } from "@/server/providers/types";
 import { engineEnv, resolveBin, runQuick, streamLines } from "@/server/providers/cli-utils";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -167,7 +168,7 @@ export async function runCopilotTurn(req: TurnRequest): Promise<void> {
   });
 
   const env = await copilotEnv();
-  const { aborted } = await streamLines({
+  const { aborted, stderrTail } = await streamLines({
     cmd: invocation.cmd,
     args,
     cwd,
@@ -178,7 +179,10 @@ export async function runCopilotTurn(req: TurnRequest): Promise<void> {
       try {
         ev = JSON.parse(line);
       } catch {
-        return; // non-JSON noise
+        // Some failures (e.g. an unavailable --model) are printed as plain
+        // "Error: …" text before any JSON — keep them for classification.
+        if (/^error[:\s]/i.test(line)) ctx.lastError = line;
+        return;
       }
       for (const e of mapCopilotEvent(ev, ctx)) {
         if (e.type === "error" && /401|unauthorized|not (?:signed in|authenticated|logged in)/i.test(e.message)) {
@@ -193,29 +197,108 @@ export async function runCopilotTurn(req: TurnRequest): Promise<void> {
   });
 
   if (!terminal) {
+    const failure = `${ctx.lastError}\n${stderrTail}`;
     if (aborted) {
       send({ type: "done", sessionId: ctx.fallbackSessionId, isError: false, subtype: "aborted", numTurns: 0, durationMs: 0, totalCostUsd: 0, usage: null });
-    } else if (RATE_LIMIT_RE.test(ctx.lastError)) {
+    } else if (/model .+ not available/i.test(failure)) {
+      send({ type: "error", message: modelUnavailableError(lang) });
+    } else if (RATE_LIMIT_RE.test(failure)) {
       send({ type: "error", message: rateLimitError(lang), code: "rate-limit" });
-    } else if (!env.COPILOT_GITHUB_TOKEN) {
-      // Died silently with no gh token → almost certainly an auth problem.
+    } else if (/401|unauthorized|not (?:signed in|authenticated|logged in)/i.test(failure) || !env.COPILOT_GITHUB_TOKEN) {
+      // An explicit auth message, or died silently with no credentials in reach.
       send({ type: "error", message: authError(lang) });
     } else {
+      console.error("[copilot-runner] turn failed:", failure.trim().slice(0, 400));
       send({ type: "error", message: genericError(lang) });
     }
   }
 }
 
-/* ---- status / models ---- */
+/* ---- status / account ---- */
+
+/** Set once a `copilot login` device flow completes in this process. The
+ *  credential itself lives in the system keychain (invisible to us). */
+const lg = globalThis as unknown as {
+  __ccw_copilot_login?: { child: ChildProcess | null; done: boolean; ok: boolean };
+};
 
 export async function copilotStatus(): Promise<EngineStatus> {
   const invocation = copilotCmd();
   if (!invocation) return { installed: false, loggedIn: null };
-  // A gh-minted token is a sure yes; without gh we cannot cheaply probe the
-  // credential store, so report unknown instead of lying.
+  // A gh-minted token or a completed in-app login is a sure yes; otherwise we
+  // cannot cheaply probe the credential store, so report unknown, not false.
   const token = await copilotToken();
-  return { installed: true, loggedIn: token ? true : null };
+  return { installed: true, loggedIn: token || lg.__ccw_copilot_login?.ok ? true : null };
 }
+
+export async function copilotAccountStatus(): Promise<AccountStatus> {
+  const s = await copilotStatus();
+  return { loggedIn: !!s.loggedIn, authMethod: lg.__ccw_copilot_login?.ok ? "device-flow" : "github-cli" };
+}
+
+/** Starts `copilot login` (GitHub device flow) and resolves with the one-time
+ *  code + URL parsed from its output, so the UI can show them. The child keeps
+ *  running until the user approves in the browser; re-running overwrites the
+ *  stored credential (that is also how you switch account — no logout exists). */
+export function copilotStartLogin(): Promise<{ verificationUrl: string; userCode: string } | void> {
+  const invocation = copilotCmd();
+  if (!invocation) return Promise.resolve();
+  const prev = lg.__ccw_copilot_login;
+  if (prev?.child && !prev.done) {
+    try {
+      prev.child.kill("SIGTERM");
+    } catch {
+      /* gone */
+    }
+  }
+  const child = spawn(invocation.cmd, [...invocation.pre, "login"], {
+    env: engineEnv(),
+    stdio: ["ignore", "pipe", "pipe"],
+    detached: true,
+  });
+  const state = { child, done: false, ok: false };
+  lg.__ccw_copilot_login = state;
+  child.on("exit", (code) => {
+    state.done = true;
+    state.ok = code === 0;
+  });
+  child.on("error", () => {
+    state.done = true;
+  });
+  return new Promise((resolve) => {
+    let buf = "";
+    const timer = setTimeout(() => resolve(undefined), 15_000);
+    const onData = (d: Buffer) => {
+      buf += d.toString("utf8");
+      const m = /visit (\S+) and enter code ([A-Z0-9-]+)/i.exec(buf);
+      if (m) {
+        clearTimeout(timer);
+        resolve({ verificationUrl: m[1], userCode: m[2] });
+      }
+    };
+    child.stdout?.on("data", onData);
+    child.stderr?.on("data", onData);
+  });
+}
+
+export async function copilotWaitForLogin(timeoutMs = 180_000): Promise<AccountStatus> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const state = lg.__ccw_copilot_login;
+    if (state?.done) return { loggedIn: state.ok, authMethod: "device-flow" };
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+  return copilotAccountStatus();
+}
+
+/** The CLI has no logout command (credential in the keychain); the honest
+ *  logout is "sign in with another account", which overwrites it. */
+export async function copilotLogout(): Promise<void> {
+  const state = lg.__ccw_copilot_login;
+  if (state) state.ok = false;
+}
+
+/* ---- models ---- */
 
 function modelLabel(id: string): string {
   return id
