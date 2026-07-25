@@ -45,7 +45,9 @@ fi
 
 if [ ! -d node_modules ] || [ package.json -nt node_modules ]; then
   echo "> Installing dependencies (this may take a few minutes)..."
-  npm install || { echo "!! Dependency installation failed."; pause_and_exit 1; }
+  npm install --no-fund --no-audit || { echo "!! Dependency installation failed."; pause_and_exit 1; }
+  # Stamp the folder so an unchanged package.json never reinstalls again.
+  touch node_modules
 fi
 
 # Rebuild when there is no build yet OR the code is newer than the build
