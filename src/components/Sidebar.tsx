@@ -3,12 +3,9 @@
 import { useEffect, useState } from "react";
 import { useAgent, MAX_PANELS } from "@/store/agent";
 import { useT } from "@/i18n";
-import { colorHex, PANEL_COLORS } from "@/lib/panel-colors";
+import { colorHex } from "@/lib/panel-colors";
 import { FileTree } from "@/components/FileTree";
 import { Icon } from "@/components/icons";
-
-/** Drag payload key for moving a pinned project into a group (P6.11.4). */
-const DND_PROJECT = "application/x-easyagent-project";
 
 export function Sidebar({
   onAddPanel,
@@ -32,25 +29,18 @@ export function Sidebar({
   const activeProject = useAgent((s) => s.activeProject);
   const activateProject = useAgent((s) => s.activateProject);
   const unpinProject = useAgent((s) => s.unpinProject);
-  // P6.11.4 — colored project folders (logical groups; nothing moves on disk).
+  // Colored folders are organized in the Projects manager (P6.11.7). Here they
+  // are read-only: the sidebar only shows the projects that are currently open,
+  // nested under their folder. No folder creation/editing lives here.
   const groups = useAgent((s) => s.groups);
   const groupMap = useAgent((s) => s.projectGroupMap);
   const loadProjectsMeta = useAgent((s) => s.loadProjectsMeta);
-  const assignProjectGroup = useAgent((s) => s.assignProjectGroup);
-  const saveGroup = useAgent((s) => s.saveGroup);
-  const renameGroup = useAgent((s) => s.renameGroup);
-  const removeGroup = useAgent((s) => s.removeGroup);
 
   useEffect(() => {
     void loadProjectsMeta();
   }, [loadProjectsMeta]);
 
   const [collapsed, setCollapsed] = useState<string[]>([]);
-  const [newGroup, setNewGroup] = useState<string | null>(null);
-  const [editGroup, setEditGroup] = useState<{ from: string; to: string } | null>(null);
-  const [colorFor, setColorFor] = useState<string | null>(null);
-  const [dropGroup, setDropGroup] = useState<string | null>(null);
-
   const toggleCollapsed = (name: string) =>
     setCollapsed((c) => (c.includes(name) ? c.filter((x) => x !== name) : [...c, name]));
 
@@ -77,6 +67,8 @@ export function Sidebar({
 
   const knownGroup = (p: string) => (groupMap[p] && groups.some((g) => g.name === groupMap[p]) ? groupMap[p] : null);
   const ungrouped = openProjects.filter((p) => !knownGroup(p));
+  // Only folders that actually contain an open project appear in the sidebar.
+  const openGroups = groups.filter((g) => openProjects.some((p) => knownGroup(p) === g.name));
 
   const pinRow = (p: string) => {
     const name = p.split("/").filter(Boolean).pop();
@@ -87,11 +79,6 @@ export function Sidebar({
         role="button"
         tabIndex={0}
         className={`pin-row ${activeProject === p ? "active" : ""}`}
-        draggable
-        onDragStart={(e) => {
-          e.dataTransfer.setData(DND_PROJECT, p);
-          e.dataTransfer.effectAllowed = "move";
-        }}
         onClick={() => activateProject(p)}
         onKeyDown={(e) => e.key === "Enter" && activateProject(p)}
         title={p}
@@ -113,22 +100,6 @@ export function Sidebar({
       </div>
     );
   };
-
-  const dropProps = (target: string | null) => ({
-    onDragOver: (e: React.DragEvent) => {
-      if (!e.dataTransfer.types.includes(DND_PROJECT)) return;
-      e.preventDefault();
-      setDropGroup(target ?? "");
-    },
-    onDragLeave: () => setDropGroup(null),
-    onDrop: (e: React.DragEvent) => {
-      setDropGroup(null);
-      const src = e.dataTransfer.getData(DND_PROJECT);
-      if (!src) return;
-      e.preventDefault();
-      void assignProjectGroup(src, target);
-    },
-  });
 
   return (
     <aside className="sidebar">
@@ -154,9 +125,9 @@ export function Sidebar({
         </div>
       )}
 
-      {(openProjects.length > 0 || groups.length > 0) && (
+      {openProjects.length > 0 && (
         <div className="pinned-projects">
-          {groups.map((g) => {
+          {openGroups.map((g) => {
             const members = openProjects.filter((p) => knownGroup(p) === g.name);
             const isCollapsed = collapsed.includes(g.name);
             return (
@@ -164,113 +135,24 @@ export function Sidebar({
                 <div
                   role="button"
                   tabIndex={0}
-                  className={`group-head ${dropGroup === g.name ? "ft-drop" : ""}`}
+                  className="group-head"
+                  title={t("groupRenameTip")}
                   onClick={() => toggleCollapsed(g.name)}
                   onKeyDown={(e) => e.key === "Enter" && toggleCollapsed(g.name)}
-                  {...dropProps(g.name)}
                 >
                   <span className="group-caret">{isCollapsed ? "▸" : "▾"}</span>
-                  <span className="color-wrap">
-                    <button
-                      className="color-dot-btn group-dot"
-                      title={t("groupColorTip")}
-                      aria-label={t("groupColorTip")}
-                      style={colorHex(g.color) ? { background: colorHex(g.color)! } : undefined}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setColorFor((v) => (v === g.name ? null : g.name));
-                      }}
-                    />
-                    {colorFor === g.name && (
-                      <span className="color-pop" onMouseLeave={() => setColorFor(null)}>
-                        {PANEL_COLORS.map((c) => (
-                          <button
-                            key={c.id}
-                            className={`color-swatch ${g.color === c.id ? "sel" : ""}`}
-                            style={{ background: c.hex }}
-                            aria-label={c.id}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setColorFor(null);
-                              void saveGroup(g.name, c.id);
-                            }}
-                          />
-                        ))}
-                      </span>
-                    )}
-                  </span>
-                  {editGroup?.from === g.name ? (
-                    <input
-                      autoFocus
-                      className="group-edit"
-                      value={editGroup.to}
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={(e) => setEditGroup({ from: g.name, to: e.target.value })}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          const to = editGroup.to.trim();
-                          if (to && to !== g.name) void renameGroup(g.name, to);
-                          setEditGroup(null);
-                        }
-                        if (e.key === "Escape") setEditGroup(null);
-                      }}
-                      onBlur={() => setEditGroup(null)}
-                    />
-                  ) : (
-                    <span
-                      className="group-name"
-                      title={t("groupRenameTip")}
-                      onDoubleClick={(e) => {
-                        e.stopPropagation();
-                        setEditGroup({ from: g.name, to: g.name });
-                      }}
-                    >
-                      {g.name}
-                    </span>
-                  )}
                   <span
-                    className="pin-close"
-                    role="button"
-                    aria-label={t("groupDeleteTip")}
-                    title={t("groupDeleteTip")}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      void removeGroup(g.name);
-                    }}
-                  >
-                    <Icon name="x" size={11} />
-                  </span>
+                    className="group-dot-static"
+                    style={colorHex(g.color) ? { background: colorHex(g.color)! } : undefined}
+                  />
+                  <span className="group-name">{g.name}</span>
                 </div>
                 {!isCollapsed && members.map(pinRow)}
               </div>
             );
           })}
 
-          <div className={`group-ungrouped ${dropGroup === "" ? "ft-drop" : ""}`} {...dropProps(null)}>
-            {ungrouped.map(pinRow)}
-          </div>
-
-          {newGroup === null ? (
-            <button className="link-btn group-add" onClick={() => setNewGroup("")}>
-              + {t("newFolder")}
-            </button>
-          ) : (
-            <input
-              autoFocus
-              className="group-edit"
-              value={newGroup}
-              placeholder={t("newFolder")}
-              onChange={(e) => setNewGroup(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && newGroup.trim()) {
-                  void saveGroup(newGroup.trim());
-                  setNewGroup(null);
-                }
-                if (e.key === "Escape") setNewGroup(null);
-              }}
-              onBlur={() => setNewGroup(null)}
-            />
-          )}
+          {ungrouped.map(pinRow)}
         </div>
       )}
 

@@ -70,6 +70,16 @@ already existed); **context compaction** — broom button: a short recap turn, t
 logical groups (registry metadata, nothing moves on disk) with drag & drop of
 projects into folders, inline create/rename, palette colors.
 
+**P6.11.7 — Project manager, read-only sidebar.** Owner feedback: folder
+*organization* belongs in the Projects window, not the sidebar. The Projects
+window is now a two-pane manager — a left folder rail (create/rename/recolor/
+delete folders, click to filter, drop a project to file it) and the project
+list (drag a row onto a folder, or a per-project "Move to folder" menu; each
+row shows a colored folder badge). The main sidebar is now read-only: it shows
+only the *open* projects, nested under their folder (colored label,
+collapsible, unpin) — folders with no open project are hidden, and there is no
+folder creation/editing there anymore (the old "+ New folder" is gone).
+
 ## P7 — Auth/TLS (next major phase)
 
 App-level login and encrypted transport. Closes the "no app auth" gap and is a

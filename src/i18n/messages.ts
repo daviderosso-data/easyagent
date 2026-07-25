@@ -473,6 +473,13 @@ export const messages = {
     groupRenameTip: "Double-click to rename",
     groupDeleteTip: "Remove folder (projects are kept)",
     toastGroups: "Couldn't update the project folders.",
+    // P6.11.7 project manager (folders live here, sidebar shows open projects only)
+    allProjects: "All projects",
+    ungrouped: "No folder",
+    folders: "Folders",
+    folderNamePh: "Folder name…",
+    moveToFolder: "Move to folder",
+    noneFolder: "None",
 
     // P6.11.2 message queue
     queueBtn: "Queue",
@@ -961,6 +968,13 @@ export const messages = {
     groupRenameTip: "Doppio clic per rinominare",
     groupDeleteTip: "Elimina cartella (i progetti restano)",
     toastGroups: "Impossibile aggiornare le cartelle dei progetti.",
+    // P6.11.7 gestore progetti (le cartelle vivono qui, la sidebar mostra solo i progetti aperti)
+    allProjects: "Tutti i progetti",
+    ungrouped: "Senza cartella",
+    folders: "Cartelle",
+    folderNamePh: "Nome cartella…",
+    moveToFolder: "Sposta in cartella",
+    noneFolder: "Nessuna",
 
     // P6.11.2 coda messaggi
     queueBtn: "Accoda",
