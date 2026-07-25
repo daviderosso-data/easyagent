@@ -288,7 +288,7 @@ export function SessionPanel({ id, onChangeFolder }: { id: string; onChangeFolde
                       className="btn btn-soft btn-sm ab-option"
                       onClick={() => {
                         setAbOpen(false);
-                        startAB(id, p.id);
+                        void startAB(id, p.id);
                       }}
                     >
                       {p.label}

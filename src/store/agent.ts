@@ -201,7 +201,7 @@ interface AppState {
   stopOrchestration: () => void;
   dismissOrchestration: () => void;
 
-  startAB: (id: string, provider: string) => void;
+  startAB: (id: string, provider: string) => Promise<void>;
   endAB: (id: string) => void;
   setCwd: (id: string, cwd: string) => void;
   setPanelColor: (id: string, color: string | undefined) => void;
@@ -447,13 +447,30 @@ export const useAgent = create<AppState>((set, get) => ({
 
   // P6.9.4 — spawn a linked twin panel on another engine; prompts sent to
   // either go to both until the pair is unlinked (or one panel closes).
-  startAB: (id, provider) => {
-    const { sessions, panels } = get();
+  // Variant B works on a COPY of the project (ab-<engine>/) so both sides can
+  // write the same filenames without clobbering each other's output.
+  startAB: async (id, provider) => {
+    const { sessions, panels, token } = get();
     const src = sessions[id];
     if (!src?.cwd || src.abPeer) return;
     const siblings = panels.filter((p) => sessions[p]?.project === src.project);
     if (siblings.length >= MAX_PANELS) return;
-    const twin = newSession(src.cwd, src.project);
+    let twinCwd = src.cwd;
+    try {
+      const r = await fetch("/api/ab/copy", {
+        method: "POST",
+        headers: authHeaders(token),
+        body: JSON.stringify({ cwd: src.project ?? src.cwd, provider }),
+      });
+      const d = await r.json();
+      if (d.ok && d.path) twinCwd = d.path;
+      else get().pushToast("toastAbCopy");
+    } catch {
+      get().pushToast("toastAbCopy");
+    }
+    // Guard again: the user may have clicked twice while the copy was made.
+    if (get().sessions[id]?.abPeer) return;
+    const twin = newSession(twinCwd, src.project);
     twin.provider = provider === "claude" ? undefined : provider;
     twin.color = autoColor(panels.length);
     twin.abPeer = id;
@@ -461,6 +478,7 @@ export const useAgent = create<AppState>((set, get) => ({
       sessions: { ...s.sessions, [twin.id]: twin, [id]: { ...s.sessions[id], abPeer: twin.id } },
       panels: [...s.panels, twin.id],
     }));
+    get().bumpFsRefresh(); // the new ab-* folder should appear in the tree
     scheduleSaveWorkspace();
   },
 

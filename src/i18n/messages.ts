@@ -454,8 +454,9 @@ export const messages = {
     // P6.9.4 A/B comparison
     abTip: "Compare with another engine (A/B)",
     abPick: "Send every prompt to this chat AND to:",
-    abWarn: "Both work on the same files — best for questions and proposals.",
+    abWarn: "Variant B works on a copy of the project (an ab-… folder): compare the files in the tree and keep what you prefer.",
     abUnlink: "Stop the A/B comparison",
+    toastAbCopy: "Couldn't create the comparison copy — both chats will share the same files.",
 
     // P6.9.8 open PR
     gitOpenPr: "Open PR",
@@ -914,8 +915,9 @@ export const messages = {
     // P6.9.4 confronto A/B
     abTip: "Confronta con un altro engine (A/B)",
     abPick: "Invia ogni prompt a questa chat E a:",
-    abWarn: "Entrambi lavorano sugli stessi file — ideale per domande e proposte.",
+    abWarn: "La variante B lavora su una copia del progetto (cartella ab-…): confronta i file nell'albero e tieni ciò che preferisci.",
     abUnlink: "Chiudi il confronto A/B",
+    toastAbCopy: "Impossibile creare la copia per il confronto — le due chat condivideranno gli stessi file.",
 
     // P6.9.8 apri PR
     gitOpenPr: "Apri PR",
