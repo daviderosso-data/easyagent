@@ -84,6 +84,8 @@ export interface Session {
   abGroup?: string;
   /** Messages waiting to run after the current turn (P6.11.2), oldest first. */
   queue?: string[];
+  /** Recap injected into the first prompt after a context compaction (P6.11.5). */
+  contextRecap?: string;
 }
 
 /** Max panels in one A/B comparison group (the original + 3 variants). */
@@ -190,6 +192,7 @@ interface AppState {
   setFocusPanel: (id: string) => void;
   clearRateLimit: (id: string) => void;
   removeQueued: (id: string, index: number) => void;
+  compactContext: (id: string) => Promise<void>;
   loadProjectsMeta: () => Promise<void>;
   assignProjectGroup: (path: string, group: string | null) => Promise<void>;
   saveGroup: (name: string, color?: string) => Promise<void>;
@@ -301,6 +304,25 @@ export const useAgent = create<AppState>((set, get) => ({
 
   removeQueued: (id, index) =>
     updateSession(id, (s) => ({ ...s, queue: (s.queue ?? []).filter((_, i) => i !== index) })),
+
+  // P6.11.5 — save tokens: one short recap turn, then a FRESH engine session
+  // that inherits only the recap. The visible transcript stays untouched.
+  compactContext: async (id) => {
+    const s = get().sessions[id];
+    if (!s || s.running || !s.items.length) return;
+    const lang = get().lang;
+    abForwarded.add(id); // maintenance turn: never forward it to A/B twins
+    await get().send(id, messages[lang].compactPrompt ?? messages.en.compactPrompt);
+    const recap = lastAssistantText(id);
+    if (!recap) return;
+    updateSession(id, (x) => ({
+      ...x,
+      sessionId: null,
+      turnId: null,
+      contextRecap: recap,
+      items: [...x.items, { kind: "assistant", id: nid(), text: messages[lang].compactDone ?? messages.en.compactDone }],
+    }));
+  },
 
   /* ---- Project groups (P6.11.4) ---- */
 
@@ -951,9 +973,13 @@ export const useAgent = create<AppState>((set, get) => ({
       abortController,
     }));
     const onEvent = (e: AgentEvent) => reduce(id, e);
+    // P6.11.5 — after a compaction, the first prompt carries the recap so the
+    // fresh session knows where the work stands (then it is consumed).
+    const recap = session.contextRecap;
+    if (recap) updateSession(id, (s) => ({ ...s, contextRecap: undefined }));
     await streamAgent(
       {
-        prompt,
+        prompt: recap ? `[Recap of the previous conversation]\n${recap}\n\n${prompt}` : prompt,
         cwd: session.cwd,
         lang: st.lang,
         sessionId: session.sessionId ?? undefined,

@@ -61,6 +61,8 @@ export function SessionPanel({ id, onChangeFolder }: { id: string; onChangeFolde
   });
   const startAB = useAgent((s) => s.startAB);
   const endAB = useAgent((s) => s.endAB);
+  const compactContext = useAgent((s) => s.compactContext);
+  const hasItems = useAgent((s) => (s.sessions[id]?.items.length ?? 0) > 0);
   const token = useAgent((s) => s.token);
   const lang = useAgent((s) => s.lang);
   const pushToast = useAgent((s) => s.pushToast);
@@ -304,6 +306,15 @@ export function SessionPanel({ id, onChangeFolder }: { id: string; onChangeFolde
             )}
           </span>
         )}
+        <button
+          className="icon-btn icon-btn-sm"
+          disabled={!cwd || running || !hasItems}
+          title={t("compactTip")}
+          aria-label={t("compactTip")}
+          onClick={() => void compactContext(id)}
+        >
+          <Icon name="broom" size={13} />
+        </button>
         <button className="icon-btn icon-btn-sm" disabled={!cwd || running || undoBusy} title={t("undoTurnTip")} aria-label={t("undoTurnTip")} onClick={() => void doUndo()}>
           <Icon name="undo" size={13} />
         </button>

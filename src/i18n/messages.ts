@@ -476,6 +476,12 @@ export const messages = {
     queueTip: "Runs right after the current turn finishes",
     queuedLabel: "Queued:",
 
+    // P6.11.5 context compaction
+    compactTip: "Compact the context — a short recap replaces the long history (saves tokens)",
+    compactPrompt:
+      "Summarize this conversation in at most 15 lines: the goal, decisions taken, current state of the files/work, and next steps. Reply with the summary only.",
+    compactDone: "✂ Context compacted — the conversation continues from the recap above, using far fewer tokens.",
+
     // P6.9.8 open PR
     gitOpenPr: "Open PR",
     prTitleLbl: "Title",
@@ -954,6 +960,12 @@ export const messages = {
     queueBtn: "Accoda",
     queueTip: "Parte appena finisce il turno in corso",
     queuedLabel: "In coda:",
+
+    // P6.11.5 compattazione contesto
+    compactTip: "Compatta il contesto — un breve riassunto sostituisce la cronologia lunga (risparmia token)",
+    compactPrompt:
+      "Riassumi questa conversazione in massimo 15 righe: obiettivo, decisioni prese, stato attuale dei file/lavoro e prossimi passi. Rispondi solo con il riassunto.",
+    compactDone: "✂ Contesto compattato — la conversazione continua dal riassunto qui sopra, usando molti meno token.",
 
     // P6.9.8 apri PR
     gitOpenPr: "Apri PR",
