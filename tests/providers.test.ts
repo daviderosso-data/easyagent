@@ -25,8 +25,8 @@ describe("provider registry", () => {
     expect(getProvider("gemini")).toBeNull(); // postponed — reserved id, not registered
   });
 
-  it("lists the P6 engine lineup", () => {
-    expect(listProviders().map((p) => p.id)).toEqual(["claude", "codex", "grok", "ollama"]);
+  it("lists the engine lineup (P6 + Copilot from P6.10)", () => {
+    expect(listProviders().map((p) => p.id)).toEqual(["claude", "codex", "grok", "copilot", "ollama"]);
   });
 
   it("every provider satisfies the contract surface", () => {

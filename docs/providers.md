@@ -49,6 +49,40 @@ Grok model list parsed from `grok models` (works pre-login); the Ollama
 tool loop above, verified live end-to-end including the approval path
 (`tests/ollama-live.test.ts`, opt-in with OLLAMA_LIVE=1).
 
+## Copilot (P6.10, spike + integration 2026-07-24, CLI 1.0.74/1.0.75)
+
+`copilot -p <prompt> --output-format json` emits JSONL events —
+`assistant.message_delta` (streaming text), `assistant.message` (full text,
+may duplicate deltas: the mapper tracks streamed chars per messageId),
+`tool.execution_start/complete` (arguments + `result.detailedContent` carries
+a ready-made diff), terminal `result` line with `sessionId` (resume verified
+live via `--resume <id>`) and usage (`premiumRequests`). Effort scale matches
+ours 1:1 (`--effort low..max`). Always passed: `--no-remote` (sessions must
+not export to GitHub web), `--no-auto-update`, `--log-level none`.
+
+Auth: GitHub login, no API key. The runner mints `COPILOT_GITHUB_TOKEN` from
+the local `gh auth token` when gh is present (documented headless method);
+otherwise the credential stored by a one-time `copilot login` (macOS Keychain)
+is found by the CLI on its own. Ambient GH_TOKEN/GITHUB_TOKEN never pass
+through (engineEnv scrubs them) — auth is deliberate, not ambient.
+
+Safety mapping: headless `-p` REQUIRES `--allow-all-tools` (it cannot prompt).
+Confined profiles rely on the CLI's own path verification (kept ON — no
+`--allow-all-paths`) and URL gating (`--allow-all-urls` only when the
+profile's installNetwork is normal/off); open profile → `--allow-all`.
+
+Models parsed live from `copilot help config` (no list command; 1h cache,
+fallback to a verified subset). Multi-vendor: Claude (Sonnet/Opus/Fable/
+Haiku), GPT-5.6 family, Kimi. Billing: every plan including Free carries a
+monthly "GitHub AI Credits" allotment (since 2026-06-01); the spike turns
+consumed 0 premium requests on the Free plan.
+
+Gotchas: npx `@latest` moved 1.0.74→1.0.75 within hours — the npx fallback is
+PINNED (bump deliberately after re-testing; `EASYAGENT_COPILOT_BIN` overrides).
+GitHub closed wrapper-support requests as wontfix and its own SDK broke on a
+flag change: treat every CLI upgrade as a breaking-change review. No account
+facet in Settings (login lives in gh); the Engine doctor diagnoses both paths.
+
 ## Architecture
 
 ```

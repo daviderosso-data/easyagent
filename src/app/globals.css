@@ -2984,3 +2984,18 @@ textarea:focus-visible,
 .preset-skill > span {
   flex: 1;
 }
+
+/* P6.10 — GitHub device-flow code */
+.device-flow {
+  margin-top: 4px;
+}
+.device-code {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 2px 8px;
+  user-select: all;
+}

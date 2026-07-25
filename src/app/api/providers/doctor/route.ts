@@ -1,5 +1,6 @@
 import { tokenValid } from "@/server/security";
 import { codexCmd, codexStatus } from "@/server/providers/codex/runner";
+import { copilotCmd, copilotToken } from "@/server/providers/copilot/runner";
 import { grokStatus, resolveGrokBin } from "@/server/providers/grok/runner";
 import { OLLAMA_URL, ollamaModels, ollamaStatus } from "@/server/providers/ollama/runner";
 import { runQuick } from "@/server/providers/cli-utils";
@@ -17,7 +18,7 @@ export interface EngineDiag {
   /** null = engine has no login concept (Ollama). */
   loggedIn: boolean | null;
   /** What's broken, if anything, plus the command that fixes it. */
-  fix: { kind: "install" | "login" | "start"; command?: string } | null;
+  fix: { kind: "install" | "login" | "start" | "auth"; command?: string } | null;
 }
 
 async function versionOf(cmd: string, pre: string[]): Promise<string | null> {
@@ -30,7 +31,7 @@ async function versionOf(cmd: string, pre: string[]): Promise<string | null> {
 export async function GET(req: Request) {
   if (!tokenValid(req)) return Response.json({ engines: [] }, { status: 403 });
 
-  const [codex, grok, ollama] = await Promise.all([
+  const [codex, grok, copilot, ollama] = await Promise.all([
     (async (): Promise<EngineDiag> => {
       const inv = codexCmd();
       const st = await codexStatus();
@@ -67,6 +68,24 @@ export async function GET(req: Request) {
       };
     })(),
     (async (): Promise<EngineDiag> => {
+      const inv = copilotCmd();
+      const usesNpx = !!inv && inv.pre.length > 0;
+      const token = await copilotToken();
+      return {
+        id: "copilot",
+        label: "Copilot (GitHub)",
+        installed: !!inv,
+        path: inv ? (usesNpx ? "npx" : inv.cmd) : null,
+        version: inv ? await versionOf(inv.cmd, inv.pre) : null,
+        loggedIn: token ? true : null,
+        fix: !inv
+          ? { kind: "install", command: "npm install -g @github/copilot" }
+          : token
+            ? null
+            : { kind: "auth", command: "gh auth login" },
+      };
+    })(),
+    (async (): Promise<EngineDiag> => {
       const st = await ollamaStatus();
       let version: string | null = null;
       if (st.installed) {
@@ -90,5 +109,5 @@ export async function GET(req: Request) {
     })(),
   ]);
 
-  return Response.json({ engines: [codex, grok, ollama] });
+  return Response.json({ engines: [codex, grok, copilot, ollama] });
 }

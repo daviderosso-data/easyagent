@@ -11,7 +11,7 @@ import type { Turn } from "@/server/session-manager";
 
 /** Engines the app can drive — see docs/providers.md for the spike findings.
  *  ("gemini" is reserved: postponed by owner decision 2026-07-21.) */
-export type ProviderId = "claude" | "codex" | "grok" | "ollama" | "gemini";
+export type ProviderId = "claude" | "codex" | "grok" | "copilot" | "ollama" | "gemini";
 
 /** One turn, as handed to a provider by the neutral pipeline. */
 export interface TurnRequest {
@@ -85,8 +85,10 @@ export interface AccountStatus {
 /** Login/logout for engines authenticated via account login (not API key). */
 export interface AccountFacet {
   status(): Promise<AccountStatus>;
-  /** Launches the (browser) login flow detached; poll status() to detect completion. */
-  startLogin(): void;
+  /** Launches the (browser) login flow detached; poll status() to detect
+   *  completion. Device-code flows resolve with the code + URL the user must
+   *  enter (the login route returns them to the UI immediately). */
+  startLogin(): void | Promise<{ verificationUrl: string; userCode: string } | void>;
   waitForLogin(timeoutMs?: number): Promise<AccountStatus>;
   logout(): Promise<void>;
 }

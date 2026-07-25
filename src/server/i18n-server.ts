@@ -38,6 +38,12 @@ export function engineUnavailable(label: string, lang: Lang): string {
 /** Matches provider messages that mean "you hit your usage limit". */
 export const RATE_LIMIT_RE = /rate.?limit|429|too many requests|usage limit|quota|out of (?:usage|credits)/i;
 
+export function modelUnavailableError(lang: Lang): string {
+  return lang === "it"
+    ? "Questo modello non è disponibile per il tuo account. Usa «Default» (scelta automatica), oppure abilita i modelli su github.com/settings/copilot e riprova."
+    : "That model isn't available for your account. Use “Default” (automatic choice), or enable models at github.com/settings/copilot and try again.";
+}
+
 export function rateLimitError(lang: Lang): string {
   return lang === "it"
     ? "L'engine ha raggiunto il limite di utilizzo. Riprova più tardi o continua con un altro engine."
