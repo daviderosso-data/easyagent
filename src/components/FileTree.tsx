@@ -11,6 +11,7 @@ import {
   apiNewFile,
   apiWriteFile,
   apiRename,
+  apiMove,
   apiDelete,
   apiSearch,
   type Entry,
@@ -31,6 +32,9 @@ interface Tab {
 }
 
 const IMAGE_EXT_RE = /\.(png|jpe?g|gif|webp|svg|bmp|ico)$/i;
+
+/** Drag-and-drop payload key for in-tree moves (P6.11.3). */
+const DND_PATH = "application/x-easyagent-path";
 
 type MenuKind = "newFile" | "newFolder" | "rename";
 
@@ -112,6 +116,45 @@ export function FileTree() {
     }, 250);
     return () => clearTimeout(h);
   }, [query, cwd, token]);
+
+  // P6.11.3 — drag & drop move inside the tree (rows are draggable; folders
+  // and the tree background are drop targets).
+  const pushToast = useAgent((s) => s.pushToast);
+  const doMove = useCallback(
+    async (src: string, destDir: string) => {
+      if (!src || src === destDir) return;
+      const parent = src.slice(0, src.lastIndexOf("/"));
+      if (parent === destDir || destDir.startsWith(src + "/")) return;
+      const r = await apiMove(src, destDir, token);
+      if (!r.ok) pushToast("toastMove");
+      bump();
+    },
+    [token, bump, pushToast],
+  );
+  const [rootDrag, setRootDrag] = useState(false);
+
+  // P6.11.6 — right-click preview for HTML files: served from the project's
+  // separate-origin static server (project JS must never see the app origin).
+  const previewFile = async (entry: Entry) => {
+    const w = window.open("", "_blank"); // popup-blocker-safe: open now, navigate later
+    try {
+      const r = await fetch("/api/preview/file", {
+        method: "POST",
+        headers: { "content-type": "application/json", ...(token ? { "x-ccw-token": token } : {}) },
+        body: JSON.stringify({ cwd, path: entry.path }),
+      });
+      const d = await r.json();
+      if (d.ok && d.url) {
+        if (w) w.location.href = d.url;
+        else window.open(d.url, "_blank");
+        return;
+      }
+    } catch {
+      /* fall through to the toast */
+    }
+    w?.close();
+    pushToast("toastPreview");
+  };
 
   const openFile = async (path: string) => {
     const existing = tabs.find((t) => t.path === path);
@@ -240,7 +283,24 @@ export function FileTree() {
         )}
       </div>
 
-      <div className="filetree-body" ref={treeRef} onKeyDown={onTreeKeyDown}>
+      <div
+        className={`filetree-body ${rootDrag ? "ft-drop" : ""}`}
+        ref={treeRef}
+        onKeyDown={onTreeKeyDown}
+        onDragOver={(e) => {
+          if (!cwd || !e.dataTransfer.types.includes(DND_PATH)) return;
+          e.preventDefault();
+          setRootDrag(true);
+        }}
+        onDragLeave={() => setRootDrag(false)}
+        onDrop={(e) => {
+          setRootDrag(false);
+          const src = e.dataTransfer.getData(DND_PATH);
+          if (!src || !cwd) return;
+          e.preventDefault();
+          void doMove(src, cwd);
+        }}
+      >
         {hits !== null ? (
           hits.length === 0 ? (
             <div className="ft-empty">{t("noResults")}</div>
@@ -273,6 +333,7 @@ export function FileTree() {
               version={reloadKey}
               onOpenFile={openFile}
               onContext={(x, y, entry) => setMenu({ x, y, entry })}
+              onMove={doMove}
             />
           ))
         )}
@@ -288,6 +349,7 @@ export function FileTree() {
           onRename={(e) => setPrompt({ kind: "rename", target: e })}
           onDelete={del}
           onReveal={(e) => void apiRevealFolder(e.path, token)}
+          onPreview={(e) => void previewFile(e)}
           onClose={() => setMenu(null)}
         />
       )}
@@ -370,6 +432,7 @@ function TreeNode({
   version,
   onOpenFile,
   onContext,
+  onMove,
 }: {
   entry: Entry;
   depth: number;
@@ -377,8 +440,10 @@ function TreeNode({
   version: number;
   onOpenFile: (path: string) => void;
   onContext: (x: number, y: number, entry: Entry) => void;
+  onMove: (src: string, destDir: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [dropping, setDropping] = useState(false);
   const [children, setChildren] = useState<Entry[] | null>(null);
 
   const load = useCallback(async () => {
@@ -404,7 +469,7 @@ function TreeNode({
   return (
     <div>
       <button
-        className="ft-row"
+        className={`ft-row ${dropping ? "ft-drop" : ""}`}
         style={{ paddingLeft: 8 + depth * 14 }}
         onClick={toggle}
         onContextMenu={(e) => {
@@ -412,6 +477,27 @@ function TreeNode({
           onContext(e.clientX, e.clientY, entry);
         }}
         title={entry.name}
+        draggable
+        onDragStart={(e) => {
+          e.dataTransfer.setData(DND_PATH, entry.path);
+          e.dataTransfer.effectAllowed = "move";
+        }}
+        onDragOver={(e) => {
+          if (!entry.isDir || !e.dataTransfer.types.includes(DND_PATH)) return;
+          e.preventDefault();
+          e.stopPropagation();
+          setDropping(true);
+        }}
+        onDragLeave={() => setDropping(false)}
+        onDrop={(e) => {
+          setDropping(false);
+          if (!entry.isDir) return;
+          const src = e.dataTransfer.getData(DND_PATH);
+          if (!src) return;
+          e.preventDefault();
+          e.stopPropagation();
+          onMove(src, entry.path);
+        }}
       >
         <span className="ft-icon"><Icon name={entry.isDir ? (open ? "folderOpen" : "folder") : "file"} size={13} /></span>
         <span className="ft-name">{entry.name}</span>
@@ -439,6 +525,7 @@ function TreeNode({
             version={version}
             onOpenFile={onOpenFile}
             onContext={onContext}
+            onMove={onMove}
           />
         ))}
     </div>
@@ -454,6 +541,7 @@ function ContextMenu({
   onRename,
   onDelete,
   onReveal,
+  onPreview,
   onClose,
 }: {
   x: number;
@@ -464,6 +552,7 @@ function ContextMenu({
   onRename: (e: Entry) => void;
   onDelete: (e: Entry) => void;
   onReveal: (e: Entry) => void;
+  onPreview: (e: Entry) => void;
   onClose: () => void;
 }) {
   const t = useT();
@@ -480,6 +569,7 @@ function ContextMenu({
   );
   return (
     <div className="ctx-menu" style={{ top: y, left: x }} onClick={(e) => e.stopPropagation()}>
+      {!entry.isDir && /\.html?$/i.test(entry.name) && item(t("previewFile"), () => onPreview(entry))}
       {entry.isDir && item(t("newFile"), () => onNewFile(entry))}
       {entry.isDir && item(t("newFolder"), () => onNewFolder(entry))}
       {item(t("rename"), () => onRename(entry))}

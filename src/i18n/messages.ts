@@ -455,11 +455,42 @@ export const messages = {
     expCost: "Cost",
 
     // P6.9.4 A/B comparison
-    abTip: "Compare with another engine (A/B)",
+    abTip: "Compare with other engines (A/B, up to 4)",
+    abAddTip: "Add another variant to the comparison",
     abPick: "Send every prompt to this chat AND to:",
     abWarn: "Variant B works on a copy of the project (an ab-… folder): compare the files in the tree and keep what you prefer.",
     abUnlink: "Stop the A/B comparison",
     toastAbCopy: "Couldn't create the comparison copy — both chats will share the same files.",
+
+    // P6.11.3 tree drag & drop
+    toastMove: "Couldn't move the item.",
+
+    // P6.11.6 HTML file preview
+    previewFile: "Preview in the browser",
+
+    // P6.11.4 project folders
+    groupColorTip: "Folder color",
+    groupRenameTip: "Double-click to rename",
+    groupDeleteTip: "Remove folder (projects are kept)",
+    toastGroups: "Couldn't update the project folders.",
+    // P6.11.7 project manager (folders live here, sidebar shows open projects only)
+    allProjects: "All projects",
+    ungrouped: "No folder",
+    folders: "Folders",
+    folderNamePh: "Folder name…",
+    moveToFolder: "Move to folder",
+    noneFolder: "None",
+
+    // P6.11.2 message queue
+    queueBtn: "Queue",
+    queueTip: "Runs right after the current turn finishes",
+    queuedLabel: "Queued:",
+
+    // P6.11.5 context compaction
+    compactTip: "Compact the context — a short recap replaces the long history (saves tokens)",
+    compactPrompt:
+      "Summarize this conversation in at most 15 lines: the goal, decisions taken, current state of the files/work, and next steps. Reply with the summary only.",
+    compactDone: "✂ Context compacted — the conversation continues from the recap above, using far fewer tokens.",
 
     // P6.9.8 open PR
     gitOpenPr: "Open PR",
@@ -919,11 +950,42 @@ export const messages = {
     expCost: "Costo",
 
     // P6.9.4 confronto A/B
-    abTip: "Confronta con un altro engine (A/B)",
+    abTip: "Confronta con altri engine (A/B, fino a 4)",
+    abAddTip: "Aggiungi un'altra variante al confronto",
     abPick: "Invia ogni prompt a questa chat E a:",
     abWarn: "La variante B lavora su una copia del progetto (cartella ab-…): confronta i file nell'albero e tieni ciò che preferisci.",
     abUnlink: "Chiudi il confronto A/B",
     toastAbCopy: "Impossibile creare la copia per il confronto — le due chat condivideranno gli stessi file.",
+
+    // P6.11.3 drag & drop nell'albero
+    toastMove: "Impossibile spostare l'elemento.",
+
+    // P6.11.6 anteprima file HTML
+    previewFile: "Anteprima nel browser",
+
+    // P6.11.4 cartelle progetti
+    groupColorTip: "Colore cartella",
+    groupRenameTip: "Doppio clic per rinominare",
+    groupDeleteTip: "Elimina cartella (i progetti restano)",
+    toastGroups: "Impossibile aggiornare le cartelle dei progetti.",
+    // P6.11.7 gestore progetti (le cartelle vivono qui, la sidebar mostra solo i progetti aperti)
+    allProjects: "Tutti i progetti",
+    ungrouped: "Senza cartella",
+    folders: "Cartelle",
+    folderNamePh: "Nome cartella…",
+    moveToFolder: "Sposta in cartella",
+    noneFolder: "Nessuna",
+
+    // P6.11.2 coda messaggi
+    queueBtn: "Accoda",
+    queueTip: "Parte appena finisce il turno in corso",
+    queuedLabel: "In coda:",
+
+    // P6.11.5 compattazione contesto
+    compactTip: "Compatta il contesto — un breve riassunto sostituisce la cronologia lunga (risparmia token)",
+    compactPrompt:
+      "Riassumi questa conversazione in massimo 15 righe: obiettivo, decisioni prese, stato attuale dei file/lavoro e prossimi passi. Rispondi solo con il riassunto.",
+    compactDone: "✂ Contesto compattato — la conversazione continua dal riassunto qui sopra, usando molti meno token.",
 
     // P6.9.8 apri PR
     gitOpenPr: "Apri PR",

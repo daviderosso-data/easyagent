@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useAgent, MAX_PANELS } from "@/store/agent";
 import { useT } from "@/i18n";
 import { colorHex } from "@/lib/panel-colors";
@@ -28,6 +29,20 @@ export function Sidebar({
   const activeProject = useAgent((s) => s.activeProject);
   const activateProject = useAgent((s) => s.activateProject);
   const unpinProject = useAgent((s) => s.unpinProject);
+  // Colored folders are organized in the Projects manager (P6.11.7). Here they
+  // are read-only: the sidebar only shows the projects that are currently open,
+  // nested under their folder. No folder creation/editing lives here.
+  const groups = useAgent((s) => s.groups);
+  const groupMap = useAgent((s) => s.projectGroupMap);
+  const loadProjectsMeta = useAgent((s) => s.loadProjectsMeta);
+
+  useEffect(() => {
+    void loadProjectsMeta();
+  }, [loadProjectsMeta]);
+
+  const [collapsed, setCollapsed] = useState<string[]>([]);
+  const toggleCollapsed = (name: string) =>
+    setCollapsed((c) => (c.includes(name) ? c.filter((x) => x !== name) : [...c, name]));
 
   // Sessions of the project on screen (no pinned project → the empty first-run panel).
   const visible = panels.filter((pid) => (activeProject ? sessions[pid]?.project === activeProject : true));
@@ -48,6 +63,42 @@ export function Sidebar({
   const jumpTo = (pid: string, project?: string) => {
     if (project && project !== activeProject) activateProject(project);
     setActive(pid);
+  };
+
+  const knownGroup = (p: string) => (groupMap[p] && groups.some((g) => g.name === groupMap[p]) ? groupMap[p] : null);
+  const ungrouped = openProjects.filter((p) => !knownGroup(p));
+  // Only folders that actually contain an open project appear in the sidebar.
+  const openGroups = groups.filter((g) => openProjects.some((p) => knownGroup(p) === g.name));
+
+  const pinRow = (p: string) => {
+    const name = p.split("/").filter(Boolean).pop();
+    const running = panels.some((pid) => sessions[pid]?.project === p && sessions[pid]?.running);
+    return (
+      <div
+        key={p}
+        role="button"
+        tabIndex={0}
+        className={`pin-row ${activeProject === p ? "active" : ""}`}
+        onClick={() => activateProject(p)}
+        onKeyDown={(e) => e.key === "Enter" && activateProject(p)}
+        title={p}
+      >
+        <span className="pin-name"><Icon name="folder" size={12} /> {name}</span>
+        {running && <span className="session-dot" />}
+        <span
+          className="pin-close"
+          role="button"
+          aria-label={t("unpinTip")}
+          title={t("unpinTip")}
+          onClick={(e) => {
+            e.stopPropagation();
+            unpinProject(p);
+          }}
+        >
+          <Icon name="x" size={11} />
+        </span>
+      </div>
+    );
   };
 
   return (
@@ -76,36 +127,32 @@ export function Sidebar({
 
       {openProjects.length > 0 && (
         <div className="pinned-projects">
-          {openProjects.map((p) => {
-            const name = p.split("/").filter(Boolean).pop();
-            const running = panels.some((pid) => sessions[pid]?.project === p && sessions[pid]?.running);
+          {openGroups.map((g) => {
+            const members = openProjects.filter((p) => knownGroup(p) === g.name);
+            const isCollapsed = collapsed.includes(g.name);
             return (
-              <div
-                key={p}
-                role="button"
-                tabIndex={0}
-                className={`pin-row ${activeProject === p ? "active" : ""}`}
-                onClick={() => activateProject(p)}
-                onKeyDown={(e) => e.key === "Enter" && activateProject(p)}
-                title={p}
-              >
-                <span className="pin-name"><Icon name="folder" size={12} /> {name}</span>
-                {running && <span className="session-dot" />}
-                <span
-                  className="pin-close"
+              <div key={g.name}>
+                <div
                   role="button"
-                  aria-label={t("unpinTip")}
-                  title={t("unpinTip")}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    unpinProject(p);
-                  }}
+                  tabIndex={0}
+                  className="group-head"
+                  title={t("groupRenameTip")}
+                  onClick={() => toggleCollapsed(g.name)}
+                  onKeyDown={(e) => e.key === "Enter" && toggleCollapsed(g.name)}
                 >
-                  <Icon name="x" size={11} />
-                </span>
+                  <span className="group-caret">{isCollapsed ? "▸" : "▾"}</span>
+                  <span
+                    className="group-dot-static"
+                    style={colorHex(g.color) ? { background: colorHex(g.color)! } : undefined}
+                  />
+                  <span className="group-name">{g.name}</span>
+                </div>
+                {!isCollapsed && members.map(pinRow)}
               </div>
             );
           })}
+
+          {ungrouped.map(pinRow)}
         </div>
       )}
 

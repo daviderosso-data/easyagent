@@ -54,9 +54,15 @@ export function SessionPanel({ id, onChangeFolder }: { id: string; onChangeFolde
   const [tuneOpen, setTuneOpen] = useState(false);
   const [undoBusy, setUndoBusy] = useState(false);
   const [abOpen, setAbOpen] = useState(false);
-  const abPeer = useAgent((s) => s.sessions[id]?.abPeer);
+  const abGroup = useAgent((s) => s.sessions[id]?.abGroup);
+  const abCount = useAgent((s) => {
+    const g = s.sessions[id]?.abGroup;
+    return g ? Object.values(s.sessions).filter((x) => x.abGroup === g).length : 0;
+  });
   const startAB = useAgent((s) => s.startAB);
   const endAB = useAgent((s) => s.endAB);
+  const compactContext = useAgent((s) => s.compactContext);
+  const hasItems = useAgent((s) => (s.sessions[id]?.items.length ?? 0) > 0);
   const token = useAgent((s) => s.token);
   const lang = useAgent((s) => s.lang);
   const pushToast = useAgent((s) => s.pushToast);
@@ -261,17 +267,18 @@ export function SessionPanel({ id, onChangeFolder }: { id: string; onChangeFolde
         </span>
 
         <span className="panel-head-spacer" />
-        {abPeer ? (
+        {abGroup && (
           <button className="ab-chip" title={t("abUnlink")} aria-label={t("abUnlink")} onClick={() => endAB(id)}>
-            A/B <Icon name="x" size={10} />
+            A/B ×{abCount} <Icon name="x" size={10} />
           </button>
-        ) : (
+        )}
+        {(!abGroup || abCount < 4) && (
           <span className="color-wrap">
             <button
               className="icon-btn icon-btn-sm"
               disabled={!cwd || running}
-              title={t("abTip")}
-              aria-label={t("abTip")}
+              title={abGroup ? t("abAddTip") : t("abTip")}
+              aria-label={abGroup ? t("abAddTip") : t("abTip")}
               aria-expanded={abOpen}
               onClick={() => setAbOpen((v) => !v)}
             >
@@ -281,7 +288,7 @@ export function SessionPanel({ id, onChangeFolder }: { id: string; onChangeFolde
               <div className="hdr-pop" onMouseLeave={() => setAbOpen(false)}>
                 <span className="field-label">{t("abPick")}</span>
                 {providers
-                  .filter((p) => p.id !== provider && p.status.installed && p.status.loggedIn !== false)
+                  .filter((p) => p.status.installed && p.status.loggedIn !== false)
                   .map((p) => (
                     <button
                       key={p.id}
@@ -299,6 +306,15 @@ export function SessionPanel({ id, onChangeFolder }: { id: string; onChangeFolde
             )}
           </span>
         )}
+        <button
+          className="icon-btn icon-btn-sm"
+          disabled={!cwd || running || !hasItems}
+          title={t("compactTip")}
+          aria-label={t("compactTip")}
+          onClick={() => void compactContext(id)}
+        >
+          <Icon name="broom" size={13} />
+        </button>
         <button className="icon-btn icon-btn-sm" disabled={!cwd || running || undoBusy} title={t("undoTurnTip")} aria-label={t("undoTurnTip")} onClick={() => void doUndo()}>
           <Icon name="undo" size={13} />
         </button>

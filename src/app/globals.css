@@ -2999,3 +2999,265 @@ textarea:focus-visible,
   padding: 2px 8px;
   user-select: all;
 }
+
+/* P6.11.3 — drag & drop in the file tree */
+.ft-drop {
+  outline: 2px dashed var(--brand);
+  outline-offset: -2px;
+  border-radius: var(--ds-radius-md);
+}
+
+/* P6.11.4 — project folders in the sidebar */
+.group-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  margin-top: 2px;
+  border-radius: var(--ds-radius-md);
+  cursor: pointer;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+}
+.group-head:hover {
+  background: var(--panel);
+}
+.group-caret {
+  width: 12px;
+  color: var(--ink-soft);
+  font-size: 10px;
+}
+.group-dot {
+  width: 11px;
+  height: 11px;
+}
+.group-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.group-head .pin-close {
+  opacity: 0;
+}
+.group-head:hover .pin-close {
+  opacity: 1;
+}
+.group-head + .pin-row,
+.group-head ~ .pin-row {
+  margin-left: 14px;
+}
+.group-ungrouped {
+  min-height: 8px;
+  border-radius: var(--ds-radius-md);
+}
+.group-add {
+  margin: 4px 8px 0;
+  font-size: 12px;
+}
+.group-edit {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 2px 6px;
+  background: var(--bg);
+  color: var(--ink);
+}
+/* Read-only folder color dot in the sidebar (no picker here anymore). */
+.group-dot-static {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line);
+  background: var(--panel);
+  flex: none;
+}
+
+/* ---- P6.11.7 project manager (folders live in the Projects window) ---- */
+.pm-modal {
+  max-width: 860px;
+}
+.pm-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+.pm-rail {
+  width: 208px;
+  flex: none;
+  border-right: 1px solid var(--line);
+  overflow-y: auto;
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.pm-rail-head {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+  padding: 2px 6px 6px;
+}
+.pm-main {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 14px 20px 20px;
+}
+.pm-folder {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  border-radius: var(--ds-radius-md);
+  background: none;
+  color: var(--ink);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.pm-folder:hover {
+  background: var(--bg);
+}
+.pm-folder.sel {
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-weight: 600;
+}
+.pm-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line);
+  background: var(--panel);
+  flex: none;
+  padding: 0;
+}
+.pm-dot-empty {
+  background: var(--bg);
+  border-style: dashed;
+}
+.pm-folder-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pm-count {
+  font-size: 11px;
+  color: var(--ink-soft);
+  flex: none;
+}
+.pm-folder.sel .pm-count {
+  color: var(--brand);
+}
+.pm-folder-x {
+  opacity: 0;
+  padding: 0 3px;
+  border-radius: 4px;
+  color: var(--ink-soft);
+  cursor: pointer;
+  background: none;
+  border: none;
+  flex: none;
+  display: inline-flex;
+}
+.pm-folder:hover .pm-folder-x {
+  opacity: 0.6;
+}
+.pm-folder-x:hover {
+  opacity: 1 !important;
+  background: var(--line);
+}
+.pm-folder-x.danger {
+  opacity: 1;
+  color: var(--red, #c0392b);
+}
+.pm-folder-edit {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  border: 1px solid var(--brand);
+  border-radius: 4px;
+  padding: 3px 6px;
+  background: var(--bg);
+  color: var(--ink);
+}
+.pm-newfolder {
+  margin-top: 8px;
+  font-size: 12.5px;
+  align-self: flex-start;
+}
+.pm-newfolder-input {
+  margin-top: 8px;
+}
+.pm-color-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 8px 4px 30px;
+}
+/* Folder chips shown under a project row when filing it away. */
+.pm-move-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  margin: -2px 0 2px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-top: none;
+  border-radius: 0 0 var(--ds-radius-md) var(--ds-radius-md);
+}
+.pm-move-label {
+  font-size: 11px;
+  color: var(--ink-soft);
+  margin-right: 2px;
+}
+.pm-move-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border: 1px solid var(--line);
+  border-radius: var(--ds-radius-full);
+  background: var(--panel);
+  color: var(--ink);
+  font-size: 12px;
+  cursor: pointer;
+}
+.pm-move-chip:hover {
+  border-color: var(--brand);
+}
+.pm-move-chip.sel {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+/* Small folder badge next to a project name in the list. */
+.proj-folder-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--ink-soft);
+  flex: none;
+}
+.proj-folder-tag .pm-dot {
+  width: 9px;
+  height: 9px;
+}
+.icon-btn.on {
+  color: var(--brand);
+  background: var(--brand-soft);
+}

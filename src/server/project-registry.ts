@@ -14,6 +14,8 @@ interface Meta {
   type?: ProjectType;
   createdAt?: number;
   lastOpenedAt?: number;
+  /** Logical folder in the project manager (P6.11.4) — nothing moves on disk. */
+  group?: string;
 }
 type MetaMap = Record<string, Meta>; // keyed by folder name
 
@@ -40,6 +42,90 @@ export interface ProjectInfo {
   type: ProjectType;
   createdAt: number;
   lastOpenedAt: number;
+  group?: string;
+}
+
+/* ---- Project groups (P6.11.4): named, colored, purely logical ---- */
+
+const GROUPS_FILE = join(META_DIR, "project-groups.json");
+
+export interface GroupInfo {
+  name: string;
+  /** Panel-palette color id (lib/panel-colors), undefined = neutral. */
+  color?: string;
+}
+
+function loadGroups(): GroupInfo[] {
+  try {
+    const raw = JSON.parse(readFileSync(GROUPS_FILE, "utf8"));
+    return Array.isArray(raw) ? raw.filter((g) => typeof g?.name === "string" && g.name.trim()) : [];
+  } catch {
+    return [];
+  }
+}
+function saveGroups(groups: GroupInfo[]): void {
+  try {
+    mkdirSync(META_DIR, { recursive: true });
+    writeFileSync(GROUPS_FILE, JSON.stringify(groups, null, 2), "utf8");
+  } catch {
+    /* best effort */
+  }
+}
+
+const validGroupName = (n: unknown): n is string => typeof n === "string" && n.trim().length > 0 && n.length <= 40;
+
+export function listGroups(): GroupInfo[] {
+  return loadGroups();
+}
+
+/** Create a group or update its color. */
+export function upsertGroup(name: unknown, color?: unknown): boolean {
+  if (!validGroupName(name)) return false;
+  const clean = name.trim();
+  const groups = loadGroups();
+  const existing = groups.find((g) => g.name === clean);
+  const c = typeof color === "string" && color ? color : undefined;
+  if (existing) existing.color = c ?? existing.color;
+  else groups.push({ name: clean, ...(c ? { color: c } : {}) });
+  saveGroups(groups);
+  return true;
+}
+
+export function renameGroup(from: unknown, to: unknown): boolean {
+  if (!validGroupName(from) || !validGroupName(to)) return false;
+  const groups = loadGroups();
+  const g = groups.find((x) => x.name === from);
+  if (!g || groups.some((x) => x.name === to.trim())) return false;
+  g.name = to.trim();
+  saveGroups(groups);
+  const meta = loadMeta();
+  for (const m of Object.values(meta)) if (m.group === from) m.group = to.trim();
+  saveMeta(meta);
+  return true;
+}
+
+/** Deleting a group only ungroups its projects — nothing else is touched. */
+export function deleteGroup(name: unknown): boolean {
+  if (!validGroupName(name)) return false;
+  saveGroups(loadGroups().filter((g) => g.name !== name));
+  const meta = loadMeta();
+  for (const m of Object.values(meta)) if (m.group === name) delete m.group;
+  saveMeta(meta);
+  return true;
+}
+
+export function setProjectGroup(folder: unknown, group: unknown): boolean {
+  if (!validFolderName(folder)) return false;
+  if (group !== null && !validGroupName(group)) return false;
+  if (!existsSync(join(PROJECTS_ROOT, folder))) return false;
+  if (group !== null && !loadGroups().some((g) => g.name === group.trim())) return false;
+  const meta = loadMeta();
+  const cur = { ...(meta[folder] ?? {}) };
+  if (group === null) delete cur.group;
+  else cur.group = group.trim();
+  meta[folder] = cur;
+  saveMeta(meta);
+  return true;
 }
 
 /** Top-level folders under the projects root, enriched with metadata. */
@@ -79,6 +165,7 @@ export function listProjects(): ProjectInfo[] {
       type,
       createdAt: createdAt!,
       lastOpenedAt: m.lastOpenedAt ?? createdAt!,
+      ...(m.group ? { group: m.group } : {}),
     });
   }
   out.sort((a, b) => b.lastOpenedAt - a.lastOpenedAt);

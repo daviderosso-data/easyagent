@@ -80,9 +80,18 @@ export interface Session {
   skills?: string[];
   /** Last turn died on a usage limit — offer switching engine (P6.9.6). */
   rateLimited?: boolean;
-  /** Twin panel of an A/B comparison — prompts sent here go to both (P6.9.4). */
-  abPeer?: string;
+  /** A/B comparison group — prompts sent to any member go to all (up to 4). */
+  abGroup?: string;
+  /** Messages waiting to run after the current turn (P6.11.2), oldest first. */
+  queue?: string[];
+  /** Recap injected into the first prompt after a context compaction (P6.11.5). */
+  contextRecap?: string;
 }
+
+/** Max panels in one A/B comparison group (the original + 3 variants). */
+export const AB_MAX = 4;
+/** Queued prompts per panel — enough for real use, small enough to stay sane. */
+const QUEUE_MAX = 10;
 
 export type PreviewState = "idle" | "installing" | "starting" | "running" | "error";
 
@@ -171,6 +180,9 @@ interface AppState {
   fsRefresh: number;
   /** Panel temporarily expanded to fill the split grid ("" = none). Ephemeral. */
   focusPanel: string;
+  /** Project groups (P6.11.4) and each project path's group, for the sidebar. */
+  groups: { name: string; color?: string }[];
+  projectGroupMap: Record<string, string>;
   /** Failures the user should know about but that must not block them. */
   toasts: Toast[];
   /** Set by the global Cmd/Ctrl+K shortcut; the active panel's composer reacts. */
@@ -179,6 +191,13 @@ interface AppState {
   setToken: (t: string) => void;
   setFocusPanel: (id: string) => void;
   clearRateLimit: (id: string) => void;
+  removeQueued: (id: string, index: number) => void;
+  compactContext: (id: string) => Promise<void>;
+  loadProjectsMeta: () => Promise<void>;
+  assignProjectGroup: (path: string, group: string | null) => Promise<void>;
+  saveGroup: (name: string, color?: string) => Promise<void>;
+  renameGroup: (from: string, to: string) => Promise<void>;
+  removeGroup: (name: string) => Promise<void>;
   pushToast: (key: MsgKey) => void;
   dismissToast: (id: number) => void;
   requestPalette: () => void;
@@ -267,6 +286,8 @@ export const useAgent = create<AppState>((set, get) => ({
   settings: DEFAULT_SETTINGS,
   orch: IDLE_ORCH,
   providers: [],
+  groups: [],
+  projectGroupMap: {},
   openProjects: [],
   activeProject: "",
   viewMode: "split",
@@ -280,6 +301,97 @@ export const useAgent = create<AppState>((set, get) => ({
   setFocusPanel: (id) => set({ focusPanel: id }),
 
   clearRateLimit: (id) => updateSession(id, (s) => ({ ...s, rateLimited: false })),
+
+  removeQueued: (id, index) =>
+    updateSession(id, (s) => ({ ...s, queue: (s.queue ?? []).filter((_, i) => i !== index) })),
+
+  // P6.11.5 — save tokens: one short recap turn, then a FRESH engine session
+  // that inherits only the recap. The visible transcript stays untouched.
+  compactContext: async (id) => {
+    const s = get().sessions[id];
+    if (!s || s.running || !s.items.length) return;
+    const lang = get().lang;
+    abForwarded.add(id); // maintenance turn: never forward it to A/B twins
+    await get().send(id, messages[lang].compactPrompt ?? messages.en.compactPrompt);
+    const recap = lastAssistantText(id);
+    if (!recap) return;
+    updateSession(id, (x) => ({
+      ...x,
+      sessionId: null,
+      turnId: null,
+      contextRecap: recap,
+      items: [...x.items, { kind: "assistant", id: nid(), text: messages[lang].compactDone ?? messages.en.compactDone }],
+    }));
+  },
+
+  /* ---- Project groups (P6.11.4) ---- */
+
+  loadProjectsMeta: async () => {
+    try {
+      const r = await fetch("/api/projects", { headers: authHeaders(get().token) });
+      if (!r.ok) return;
+      const d = await r.json();
+      const map: Record<string, string> = {};
+      for (const p of d.projects ?? []) if (p.group && p.path) map[p.path] = p.group;
+      set({ groups: Array.isArray(d.groups) ? d.groups : [], projectGroupMap: map });
+    } catch {
+      /* sidebar falls back to a flat list */
+    }
+  },
+
+  assignProjectGroup: async (path, group) => {
+    const folder = path.split("/").filter(Boolean).pop();
+    if (!folder) return;
+    try {
+      await fetch("/api/projects", {
+        method: "PATCH",
+        headers: authHeaders(get().token),
+        body: JSON.stringify({ folder, group }),
+      });
+    } catch {
+      get().pushToast("toastGroups");
+    }
+    await get().loadProjectsMeta();
+  },
+
+  saveGroup: async (name, color) => {
+    try {
+      await fetch("/api/projects/groups", {
+        method: "POST",
+        headers: authHeaders(get().token),
+        body: JSON.stringify({ name, ...(color ? { color } : {}) }),
+      });
+    } catch {
+      get().pushToast("toastGroups");
+    }
+    await get().loadProjectsMeta();
+  },
+
+  renameGroup: async (from, to) => {
+    try {
+      await fetch("/api/projects/groups", {
+        method: "PATCH",
+        headers: authHeaders(get().token),
+        body: JSON.stringify({ from, to }),
+      });
+    } catch {
+      get().pushToast("toastGroups");
+    }
+    await get().loadProjectsMeta();
+  },
+
+  removeGroup: async (name) => {
+    try {
+      await fetch("/api/projects/groups", {
+        method: "DELETE",
+        headers: authHeaders(get().token),
+        body: JSON.stringify({ name }),
+      });
+    } catch {
+      get().pushToast("toastGroups");
+    }
+    await get().loadProjectsMeta();
+  },
 
   pushToast: (key) => {
     const message = messages[get().lang][key] ?? messages.en[key];
@@ -430,9 +542,11 @@ export const useAgent = create<AppState>((set, get) => ({
     const rest = panels.filter((p) => p !== id);
     const nextSessions = { ...sessions };
     delete nextSessions[id];
-    // Closing one half of an A/B pair ends the comparison on the survivor.
-    for (const [sid, s] of Object.entries(nextSessions)) {
-      if (s.abPeer === id) nextSessions[sid] = { ...s, abPeer: undefined };
+    // Closing a member of an A/B group dissolves the group when <2 remain.
+    const grp = sessions[id]?.abGroup;
+    if (grp) {
+      const left = Object.entries(nextSessions).filter(([, s]) => s.abGroup === grp);
+      if (left.length < 2) for (const [sid, s] of left) nextSessions[sid] = { ...s, abGroup: undefined };
     }
     set({
       sessions: nextSessions,
@@ -445,14 +559,15 @@ export const useAgent = create<AppState>((set, get) => ({
 
   setActivePanel: (id) => set({ activePanel: id }),
 
-  // P6.9.4 — spawn a linked twin panel on another engine; prompts sent to
-  // either go to both until the pair is unlinked (or one panel closes).
-  // Variant B works on a COPY of the project (ab-<engine>/) so both sides can
-  // write the same filenames without clobbering each other's output.
+  // P6.9.4/P6.11.1 — add a comparison variant on another engine (up to AB_MAX
+  // panels in one group). Every variant works on its own COPY of the project
+  // (ab-<engine>/) so outputs never clobber each other.
   startAB: async (id, provider) => {
     const { sessions, panels, token } = get();
     const src = sessions[id];
-    if (!src?.cwd || src.abPeer) return;
+    if (!src?.cwd) return;
+    const group = src.abGroup ?? `ab_${Date.now().toString(36)}`;
+    if (src.abGroup && Object.values(sessions).filter((s) => s.abGroup === group).length >= AB_MAX) return;
     const siblings = panels.filter((p) => sessions[p]?.project === src.project);
     if (siblings.length >= MAX_PANELS) return;
     let twinCwd = src.cwd;
@@ -468,24 +583,33 @@ export const useAgent = create<AppState>((set, get) => ({
     } catch {
       get().pushToast("toastAbCopy");
     }
-    // Guard again: the user may have clicked twice while the copy was made.
-    if (get().sessions[id]?.abPeer) return;
+    // Re-check after the await: the user may have clicked twice.
+    const cur = get().sessions[id];
+    if (!cur) return;
+    if (cur.abGroup && Object.values(get().sessions).filter((s) => s.abGroup === group).length >= AB_MAX) return;
     const twin = newSession(twinCwd, src.project);
     twin.provider = provider === "claude" ? undefined : provider;
-    twin.color = autoColor(panels.length);
-    twin.abPeer = id;
+    twin.color = autoColor(get().panels.length);
+    twin.abGroup = group;
     set((s) => ({
-      sessions: { ...s.sessions, [twin.id]: twin, [id]: { ...s.sessions[id], abPeer: twin.id } },
+      sessions: { ...s.sessions, [twin.id]: twin, [id]: { ...s.sessions[id], abGroup: group } },
       panels: [...s.panels, twin.id],
     }));
     get().bumpFsRefresh(); // the new ab-* folder should appear in the tree
     scheduleSaveWorkspace();
   },
 
+  // The chip dissolves the whole comparison for every member.
   endAB: (id) => {
-    const peer = get().sessions[id]?.abPeer;
-    updateSession(id, (s) => ({ ...s, abPeer: undefined }));
-    if (peer) updateSession(peer, (s) => ({ ...s, abPeer: undefined }));
+    const group = get().sessions[id]?.abGroup;
+    if (!group) return;
+    set((s) => {
+      const sessions = { ...s.sessions };
+      for (const [sid, sess] of Object.entries(sessions)) {
+        if (sess.abGroup === group) sessions[sid] = { ...sess, abGroup: undefined };
+      }
+      return { sessions };
+    });
   },
 
   activateProject: (path) => {
@@ -820,12 +944,24 @@ export const useAgent = create<AppState>((set, get) => ({
   async send(id, prompt) {
     const st = get();
     const session = st.sessions[id];
-    if (!session || session.running || !prompt.trim() || !session.cwd) return;
-    // A/B pair: forward the prompt to the twin exactly once (no ping-pong).
+    if (!session || !prompt.trim() || !session.cwd) return;
+    // A/B group: forward the prompt to every other member exactly once (the
+    // one-shot marks prevent ping-pong; busy members queue it like anyone).
     const forwarded = abForwarded.delete(id);
-    if (!forwarded && session.abPeer && st.sessions[session.abPeer] && !st.sessions[session.abPeer].running) {
-      abForwarded.add(session.abPeer);
-      void get().send(session.abPeer, prompt);
+    if (!forwarded && session.abGroup) {
+      for (const [sid, sess] of Object.entries(st.sessions)) {
+        if (sid !== id && sess.abGroup === session.abGroup) {
+          abForwarded.add(sid);
+          void get().send(sid, prompt);
+        }
+      }
+    }
+    // P6.11.2 — busy panel: the message waits its turn instead of being lost.
+    if (session.running) {
+      updateSession(id, (s) =>
+        (s.queue?.length ?? 0) >= QUEUE_MAX ? s : { ...s, queue: [...(s.queue ?? []), prompt] },
+      );
+      return;
     }
     const abortController = new AbortController();
     updateSession(id, (s) => ({
@@ -837,9 +973,13 @@ export const useAgent = create<AppState>((set, get) => ({
       abortController,
     }));
     const onEvent = (e: AgentEvent) => reduce(id, e);
+    // P6.11.5 — after a compaction, the first prompt carries the recap so the
+    // fresh session knows where the work stands (then it is consumed).
+    const recap = session.contextRecap;
+    if (recap) updateSession(id, (s) => ({ ...s, contextRecap: undefined }));
     await streamAgent(
       {
-        prompt,
+        prompt: recap ? `[Recap of the previous conversation]\n${recap}\n\n${prompt}` : prompt,
         cwd: session.cwd,
         lang: st.lang,
         sessionId: session.sessionId ?? undefined,
@@ -857,6 +997,15 @@ export const useAgent = create<AppState>((set, get) => ({
       (turnId) => updateSession(id, (s) => ({ ...s, turnId })),
     );
     updateSession(id, (s) => ({ ...s, running: false, abortController: null }));
+    // P6.11.2 — run the next queued message (it was already forwarded to the
+    // A/B group when it entered the queue, hence the one-shot mark).
+    const q = get().sessions[id]?.queue;
+    if (q?.length) {
+      const [next, ...rest] = q;
+      updateSession(id, (s) => ({ ...s, queue: rest }));
+      abForwarded.add(id);
+      void get().send(id, next);
+    }
   },
 
   async stop(id) {
@@ -871,8 +1020,8 @@ export const useAgent = create<AppState>((set, get) => ({
     }
     session?.abortController?.abort();
     // The dying turn auto-denies its parked approvals server-side; drop the
-    // local queue so no stale modal outlives the turn.
-    updateSession(id, (s) => ({ ...s, running: false, pending: [] }));
+    // local approvals AND the message queue — Stop means stop everything.
+    updateSession(id, (s) => ({ ...s, running: false, pending: [], queue: [] }));
   },
 
   async respondApproval(id, decision, alwaysAllow) {
