@@ -60,6 +60,16 @@ Gemini still forbidden). Free plan works (monthly AI-credits allotment);
 multi-vendor models (Claude/GPT-5.6/Kimi) parsed live from the CLI. See
 docs/providers.md for the spike notes.
 
+## P6.11 — Workspace pro (shipped 2026-07-25)
+
+Owner requests of 2026-07-25: **A/B up to 4 models** (comparison groups, one
+project copy per variant, chip ×N); **message queue** — send to a busy panel
+and it runs right after the turn (removable chips, Stop clears); **drag & drop
+in the file tree** (folders + background as drop targets; manual file creation
+already existed); **project folders in the sidebar** — colored, collapsible,
+logical groups (registry metadata, nothing moves on disk) with drag & drop of
+projects into folders, inline create/rename, palette colors.
+
 ## P7 — Auth/TLS (next major phase)
 
 App-level login and encrypted transport. Closes the "no app auth" gap and is a

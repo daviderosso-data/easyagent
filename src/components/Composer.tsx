@@ -10,6 +10,9 @@ import { Icon } from "@/components/icons";
 
 const REJECT_TOAST = { type: "toastFileType", big: "toastFileTooBig", many: "toastTooManyFiles" } as const;
 
+/** Stable empty value: a fresh [] per render would loop useSyncExternalStore. */
+const EMPTY_QUEUE: string[] = [];
+
 export function Composer({ id }: { id: string }) {
   const [text, setText] = useState("");
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -103,7 +106,7 @@ export function Composer({ id }: { id: string }) {
     void send(id, prompt);
   };
 
-  const queue = useAgent((s) => s.sessions[id]?.queue ?? []);
+  const queue = useAgent((s) => s.sessions[id]?.queue ?? EMPTY_QUEUE);
   const removeQueued = useAgent((s) => s.removeQueued);
 
   const insertCommand = (val: string) => {
