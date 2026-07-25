@@ -3080,6 +3080,8 @@ textarea:focus-visible,
 /* ---- P6.11.7 project manager (folders live in the Projects window) ---- */
 .pm-modal {
   max-width: 860px;
+  /* Fixed size so the window never resizes as folders/projects change. */
+  height: 82vh;
 }
 .pm-body {
   display: flex;
@@ -3197,8 +3199,13 @@ textarea:focus-visible,
   font-size: 12.5px;
   align-self: flex-start;
 }
+/* Direct child of the flex-column rail: must NOT grow to fill it (that made a
+ * giant box). Keep it a normal single-line field. */
 .pm-newfolder-input {
+  flex: none;
+  width: 100%;
   margin-top: 8px;
+  padding: 7px 10px;
 }
 .pm-color-row {
   display: flex;
