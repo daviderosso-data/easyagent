@@ -465,6 +465,12 @@ export const messages = {
     // P6.11.3 tree drag & drop
     toastMove: "Couldn't move the item.",
 
+    // P6.11.4 project folders
+    groupColorTip: "Folder color",
+    groupRenameTip: "Double-click to rename",
+    groupDeleteTip: "Remove folder (projects are kept)",
+    toastGroups: "Couldn't update the project folders.",
+
     // P6.11.2 message queue
     queueBtn: "Queue",
     queueTip: "Runs right after the current turn finishes",
@@ -937,6 +943,12 @@ export const messages = {
 
     // P6.11.3 drag & drop nell'albero
     toastMove: "Impossibile spostare l'elemento.",
+
+    // P6.11.4 cartelle progetti
+    groupColorTip: "Colore cartella",
+    groupRenameTip: "Doppio clic per rinominare",
+    groupDeleteTip: "Elimina cartella (i progetti restano)",
+    toastGroups: "Impossibile aggiornare le cartelle dei progetti.",
 
     // P6.11.2 coda messaggi
     queueBtn: "Accoda",

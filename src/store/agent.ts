@@ -178,6 +178,9 @@ interface AppState {
   fsRefresh: number;
   /** Panel temporarily expanded to fill the split grid ("" = none). Ephemeral. */
   focusPanel: string;
+  /** Project groups (P6.11.4) and each project path's group, for the sidebar. */
+  groups: { name: string; color?: string }[];
+  projectGroupMap: Record<string, string>;
   /** Failures the user should know about but that must not block them. */
   toasts: Toast[];
   /** Set by the global Cmd/Ctrl+K shortcut; the active panel's composer reacts. */
@@ -187,6 +190,11 @@ interface AppState {
   setFocusPanel: (id: string) => void;
   clearRateLimit: (id: string) => void;
   removeQueued: (id: string, index: number) => void;
+  loadProjectsMeta: () => Promise<void>;
+  assignProjectGroup: (path: string, group: string | null) => Promise<void>;
+  saveGroup: (name: string, color?: string) => Promise<void>;
+  renameGroup: (from: string, to: string) => Promise<void>;
+  removeGroup: (name: string) => Promise<void>;
   pushToast: (key: MsgKey) => void;
   dismissToast: (id: number) => void;
   requestPalette: () => void;
@@ -275,6 +283,8 @@ export const useAgent = create<AppState>((set, get) => ({
   settings: DEFAULT_SETTINGS,
   orch: IDLE_ORCH,
   providers: [],
+  groups: [],
+  projectGroupMap: {},
   openProjects: [],
   activeProject: "",
   viewMode: "split",
@@ -291,6 +301,75 @@ export const useAgent = create<AppState>((set, get) => ({
 
   removeQueued: (id, index) =>
     updateSession(id, (s) => ({ ...s, queue: (s.queue ?? []).filter((_, i) => i !== index) })),
+
+  /* ---- Project groups (P6.11.4) ---- */
+
+  loadProjectsMeta: async () => {
+    try {
+      const r = await fetch("/api/projects", { headers: authHeaders(get().token) });
+      if (!r.ok) return;
+      const d = await r.json();
+      const map: Record<string, string> = {};
+      for (const p of d.projects ?? []) if (p.group && p.path) map[p.path] = p.group;
+      set({ groups: Array.isArray(d.groups) ? d.groups : [], projectGroupMap: map });
+    } catch {
+      /* sidebar falls back to a flat list */
+    }
+  },
+
+  assignProjectGroup: async (path, group) => {
+    const folder = path.split("/").filter(Boolean).pop();
+    if (!folder) return;
+    try {
+      await fetch("/api/projects", {
+        method: "PATCH",
+        headers: authHeaders(get().token),
+        body: JSON.stringify({ folder, group }),
+      });
+    } catch {
+      get().pushToast("toastGroups");
+    }
+    await get().loadProjectsMeta();
+  },
+
+  saveGroup: async (name, color) => {
+    try {
+      await fetch("/api/projects/groups", {
+        method: "POST",
+        headers: authHeaders(get().token),
+        body: JSON.stringify({ name, ...(color ? { color } : {}) }),
+      });
+    } catch {
+      get().pushToast("toastGroups");
+    }
+    await get().loadProjectsMeta();
+  },
+
+  renameGroup: async (from, to) => {
+    try {
+      await fetch("/api/projects/groups", {
+        method: "PATCH",
+        headers: authHeaders(get().token),
+        body: JSON.stringify({ from, to }),
+      });
+    } catch {
+      get().pushToast("toastGroups");
+    }
+    await get().loadProjectsMeta();
+  },
+
+  removeGroup: async (name) => {
+    try {
+      await fetch("/api/projects/groups", {
+        method: "DELETE",
+        headers: authHeaders(get().token),
+        body: JSON.stringify({ name }),
+      });
+    } catch {
+      get().pushToast("toastGroups");
+    }
+    await get().loadProjectsMeta();
+  },
 
   pushToast: (key) => {
     const message = messages[get().lang][key] ?? messages.en[key];

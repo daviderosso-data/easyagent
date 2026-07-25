@@ -3006,3 +3006,64 @@ textarea:focus-visible,
   outline-offset: -2px;
   border-radius: var(--ds-radius-md);
 }
+
+/* P6.11.4 — project folders in the sidebar */
+.group-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  margin-top: 2px;
+  border-radius: var(--ds-radius-md);
+  cursor: pointer;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+}
+.group-head:hover {
+  background: var(--panel);
+}
+.group-caret {
+  width: 12px;
+  color: var(--ink-soft);
+  font-size: 10px;
+}
+.group-dot {
+  width: 11px;
+  height: 11px;
+}
+.group-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.group-head .pin-close {
+  opacity: 0;
+}
+.group-head:hover .pin-close {
+  opacity: 1;
+}
+.group-head + .pin-row,
+.group-head ~ .pin-row {
+  margin-left: 14px;
+}
+.group-ungrouped {
+  min-height: 8px;
+  border-radius: var(--ds-radius-md);
+}
+.group-add {
+  margin: 4px 8px 0;
+  font-size: 12px;
+}
+.group-edit {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 2px 6px;
+  background: var(--bg);
+  color: var(--ink);
+}
