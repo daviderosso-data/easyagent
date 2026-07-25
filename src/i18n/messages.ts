@@ -462,6 +462,9 @@ export const messages = {
     abUnlink: "Stop the A/B comparison",
     toastAbCopy: "Couldn't create the comparison copy — both chats will share the same files.",
 
+    // P6.11.3 tree drag & drop
+    toastMove: "Couldn't move the item.",
+
     // P6.11.2 message queue
     queueBtn: "Queue",
     queueTip: "Runs right after the current turn finishes",
@@ -931,6 +934,9 @@ export const messages = {
     abWarn: "La variante B lavora su una copia del progetto (cartella ab-…): confronta i file nell'albero e tieni ciò che preferisci.",
     abUnlink: "Chiudi il confronto A/B",
     toastAbCopy: "Impossibile creare la copia per il confronto — le due chat condivideranno gli stessi file.",
+
+    // P6.11.3 drag & drop nell'albero
+    toastMove: "Impossibile spostare l'elemento.",
 
     // P6.11.2 coda messaggi
     queueBtn: "Accoda",

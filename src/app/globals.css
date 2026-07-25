@@ -2999,3 +2999,10 @@ textarea:focus-visible,
   padding: 2px 8px;
   user-select: all;
 }
+
+/* P6.11.3 — drag & drop in the file tree */
+.ft-drop {
+  outline: 2px dashed var(--brand);
+  outline-offset: -2px;
+  border-radius: var(--ds-radius-md);
+}
