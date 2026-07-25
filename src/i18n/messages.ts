@@ -455,11 +455,17 @@ export const messages = {
     expCost: "Cost",
 
     // P6.9.4 A/B comparison
-    abTip: "Compare with another engine (A/B)",
+    abTip: "Compare with other engines (A/B, up to 4)",
+    abAddTip: "Add another variant to the comparison",
     abPick: "Send every prompt to this chat AND to:",
     abWarn: "Variant B works on a copy of the project (an ab-… folder): compare the files in the tree and keep what you prefer.",
     abUnlink: "Stop the A/B comparison",
     toastAbCopy: "Couldn't create the comparison copy — both chats will share the same files.",
+
+    // P6.11.2 message queue
+    queueBtn: "Queue",
+    queueTip: "Runs right after the current turn finishes",
+    queuedLabel: "Queued:",
 
     // P6.9.8 open PR
     gitOpenPr: "Open PR",
@@ -919,11 +925,17 @@ export const messages = {
     expCost: "Costo",
 
     // P6.9.4 confronto A/B
-    abTip: "Confronta con un altro engine (A/B)",
+    abTip: "Confronta con altri engine (A/B, fino a 4)",
+    abAddTip: "Aggiungi un'altra variante al confronto",
     abPick: "Invia ogni prompt a questa chat E a:",
     abWarn: "La variante B lavora su una copia del progetto (cartella ab-…): confronta i file nell'albero e tieni ciò che preferisci.",
     abUnlink: "Chiudi il confronto A/B",
     toastAbCopy: "Impossibile creare la copia per il confronto — le due chat condivideranno gli stessi file.",
+
+    // P6.11.2 coda messaggi
+    queueBtn: "Accoda",
+    queueTip: "Parte appena finisce il turno in corso",
+    queuedLabel: "In coda:",
 
     // P6.9.8 apri PR
     gitOpenPr: "Apri PR",

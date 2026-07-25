@@ -81,7 +81,8 @@ export function Composer({ id }: { id: string }) {
 
   const submit = async () => {
     const val = text.trim();
-    if ((!val && files.length === 0) || running || !cwd || uploading) return;
+    // Sending while a turn runs is fine — the store queues it (P6.11.2).
+    if ((!val && files.length === 0) || !cwd || uploading) return;
     let prompt = val;
     if (files.length) {
       // Save the attachments into the project first, then reference their
@@ -101,6 +102,9 @@ export function Composer({ id }: { id: string }) {
     setText("");
     void send(id, prompt);
   };
+
+  const queue = useAgent((s) => s.sessions[id]?.queue ?? []);
+  const removeQueued = useAgent((s) => s.removeQueued);
 
   const insertCommand = (val: string) => {
     setText(val);
@@ -152,6 +156,20 @@ export function Composer({ id }: { id: string }) {
           </button>
         ))}
       </div>
+
+      {queue.length > 0 && (
+        <div className="attach-chips queue-chips">
+          <span className="attach-uploading">{t("queuedLabel")}</span>
+          {queue.map((q, i) => (
+            <span className="attach-chip" key={`${i}-${q.slice(0, 20)}`} title={q}>
+              <span className="attach-chip-name">{q.length > 40 ? `${q.slice(0, 40)}…` : q}</span>
+              <button className="attach-chip-x" aria-label={t("close")} onClick={() => removeQueued(id, i)}>
+                <Icon name="x" size={10} />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
 
       {files.length > 0 && (
         <div className="attach-chips">
@@ -214,9 +232,19 @@ export function Composer({ id }: { id: string }) {
           }}
         />
         {running ? (
-          <button className="btn btn-stop" onClick={() => void stop(id)}>
-            <Icon name="stop" size={13} /> {t("stop")}
-          </button>
+          <>
+            <button className="btn btn-stop" onClick={() => void stop(id)}>
+              <Icon name="stop" size={13} /> {t("stop")}
+            </button>
+            <button
+              className="btn btn-soft btn-send"
+              title={t("queueTip")}
+              onClick={() => void submit()}
+              disabled={(!text.trim() && files.length === 0) || !cwd || uploading}
+            >
+              {t("queueBtn")} ▸
+            </button>
+          </>
         ) : (
           <button
             className="btn btn-primary btn-send"
