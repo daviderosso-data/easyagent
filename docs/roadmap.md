@@ -66,7 +66,7 @@ Owner requests of 2026-07-25: **A/B up to 4 models** (comparison groups, one
 project copy per variant, chip ×N); **message queue** — send to a busy panel
 and it runs right after the turn (removable chips, Stop clears); **drag & drop
 in the file tree** (folders + background as drop targets; manual file creation
-already existed); **context compaction** — broom button: a short recap turn, then a fresh engine session inheriting only the recap (visible history untouched, tokens saved); **project folders in the sidebar** — colored, collapsible,
+already existed); **context compaction** — broom button: a short recap turn, then a fresh engine session inheriting only the recap (visible history untouched, tokens saved); **HTML file preview** — right-click an .html file in the tree → rendered in the browser from the project's separate-origin static server; **project folders in the sidebar** — colored, collapsible,
 logical groups (registry metadata, nothing moves on disk) with drag & drop of
 projects into folders, inline create/rename, palette colors.
 

@@ -77,6 +77,29 @@ function killTree(child: ChildProcess): void {
   }, 3000).unref();
 }
 
+/* P6.11.6 — single-file previews share one static server per project (same
+ * separate-origin security model as the normal preview). Lives for the
+ * process; loopback-only and path-confined by the static server itself. */
+const fileServers = new Map<string, { url: string; close: () => void }>();
+
+export async function fileStaticBaseUrl(projectRoot: string): Promise<string | null> {
+  let key: string;
+  try {
+    key = realpathSync(projectRoot);
+  } catch {
+    return null;
+  }
+  const existing = fileServers.get(key);
+  if (existing) return existing.url;
+  try {
+    const srv = await startStaticServer(key);
+    fileServers.set(key, { url: srv.url, close: srv.close });
+    return srv.url;
+  } catch {
+    return null;
+  }
+}
+
 class PreviewManager {
   private entries = new Map<string, PreviewEntry>();
 

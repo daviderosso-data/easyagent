@@ -465,6 +465,9 @@ export const messages = {
     // P6.11.3 tree drag & drop
     toastMove: "Couldn't move the item.",
 
+    // P6.11.6 HTML file preview
+    previewFile: "Preview in the browser",
+
     // P6.11.4 project folders
     groupColorTip: "Folder color",
     groupRenameTip: "Double-click to rename",
@@ -949,6 +952,9 @@ export const messages = {
 
     // P6.11.3 drag & drop nell'albero
     toastMove: "Impossibile spostare l'elemento.",
+
+    // P6.11.6 anteprima file HTML
+    previewFile: "Anteprima nel browser",
 
     // P6.11.4 cartelle progetti
     groupColorTip: "Colore cartella",

@@ -133,6 +133,29 @@ export function FileTree() {
   );
   const [rootDrag, setRootDrag] = useState(false);
 
+  // P6.11.6 — right-click preview for HTML files: served from the project's
+  // separate-origin static server (project JS must never see the app origin).
+  const previewFile = async (entry: Entry) => {
+    const w = window.open("", "_blank"); // popup-blocker-safe: open now, navigate later
+    try {
+      const r = await fetch("/api/preview/file", {
+        method: "POST",
+        headers: { "content-type": "application/json", ...(token ? { "x-ccw-token": token } : {}) },
+        body: JSON.stringify({ cwd, path: entry.path }),
+      });
+      const d = await r.json();
+      if (d.ok && d.url) {
+        if (w) w.location.href = d.url;
+        else window.open(d.url, "_blank");
+        return;
+      }
+    } catch {
+      /* fall through to the toast */
+    }
+    w?.close();
+    pushToast("toastPreview");
+  };
+
   const openFile = async (path: string) => {
     const existing = tabs.find((t) => t.path === path);
     if (existing) {
@@ -326,6 +349,7 @@ export function FileTree() {
           onRename={(e) => setPrompt({ kind: "rename", target: e })}
           onDelete={del}
           onReveal={(e) => void apiRevealFolder(e.path, token)}
+          onPreview={(e) => void previewFile(e)}
           onClose={() => setMenu(null)}
         />
       )}
@@ -517,6 +541,7 @@ function ContextMenu({
   onRename,
   onDelete,
   onReveal,
+  onPreview,
   onClose,
 }: {
   x: number;
@@ -527,6 +552,7 @@ function ContextMenu({
   onRename: (e: Entry) => void;
   onDelete: (e: Entry) => void;
   onReveal: (e: Entry) => void;
+  onPreview: (e: Entry) => void;
   onClose: () => void;
 }) {
   const t = useT();
@@ -543,6 +569,7 @@ function ContextMenu({
   );
   return (
     <div className="ctx-menu" style={{ top: y, left: x }} onClick={(e) => e.stopPropagation()}>
+      {!entry.isDir && /\.html?$/i.test(entry.name) && item(t("previewFile"), () => onPreview(entry))}
       {entry.isDir && item(t("newFile"), () => onNewFile(entry))}
       {entry.isDir && item(t("newFolder"), () => onNewFolder(entry))}
       {item(t("rename"), () => onRename(entry))}
