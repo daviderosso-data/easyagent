@@ -135,7 +135,12 @@ export function revokeAllSessions(): void {
 
 /* ---- Cookie helpers (route handlers use plain Set-Cookie headers) ---- */
 
-const secure = () => (process.env.EASYAGENT_HTTPS === "1" ? "; Secure" : "");
+// Secure when this process serves TLS itself, or when a reverse proxy in front
+// of it terminates https (server deployments — see EASYAGENT_PUBLIC_ORIGIN).
+const secure = () =>
+  process.env.EASYAGENT_HTTPS === "1" || process.env.EASYAGENT_PUBLIC_ORIGIN?.trim().startsWith("https:")
+    ? "; Secure"
+    : "";
 
 export function sessionSetCookie(id: string): string {
   return `${SESSION_COOKIE}=${id}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${SESSION_TTL / 1000}${secure()}`;

@@ -16,7 +16,12 @@ export const maxDuration = 1800; // long-running agent turns (30 min)
 
 // Matches MAX_PANELS so every open panel can run a turn; the subscription's
 // own rate limits are the real throttle, and slots free on disconnect.
-const MAX_CONCURRENT_TURNS = 10;
+// Each turn spawns an engine subprocess, so on a small VPS (2 vCPU) the
+// default thrashes: EASYAGENT_MAX_TURNS lets the operator lower it.
+const MAX_CONCURRENT_TURNS = (() => {
+  const n = parseInt(process.env.EASYAGENT_MAX_TURNS ?? "", 10);
+  return Number.isFinite(n) && n >= 1 && n <= 10 ? n : 10;
+})();
 
 const BodySchema = z.object({
   prompt: z.string().min(1).max(100_000),

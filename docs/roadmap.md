@@ -143,6 +143,26 @@ lookup calls an external echo service (api.ipify.org), so it is on demand only
 and the reply is rendered only after it validates as a bare IP address. The
 external row carries the port-forward caveat.
 
+## P8 — Server deployment (in progress)
+
+Owner intent 2026-07-26: run easyagent on a VPS (Hostinger KVM 2, Ubuntu
+24.04), with "a proper login with 2FA" once it lives there.
+
+**Shipped — behind a reverse proxy.** P7.1's remote mode binds every interface
+and needs the app to serve TLS itself, which is the wrong shape for a server:
+there, Caddy should hold 443 with a real Let's Encrypt certificate and forward
+to the app on loopback. `EASYAGENT_PUBLIC_ORIGIN` declares the public address —
+the proxy then accepts that one Host (and loopback) and nothing else, session
+cookies are marked Secure, and, crucially, **a password stops being optional**:
+the first-run "continue without one" is removed from the UI *and* refused by
+the route, so a public deployment can never be one click from open. A prior
+local "skip" does not carry over. `EASYAGENT_MAX_TURNS` caps parallel turns for
+small boxes. Full instructions in `docs/vps.md`.
+
+**Still open — the 2FA the owner asked for.** The gate remains one password
+plus the login rate limit. Until then `docs/vps.md` points at an
+authenticating proxy for anything valuable.
+
 ## Postponed
 
 - **Gemini engine** — postponed for ToS reasons (see `docs/providers.md`,

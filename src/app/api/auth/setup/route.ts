@@ -4,6 +4,7 @@
 import { z } from "zod";
 import { tokenValid } from "@/server/security";
 import { authState, createSession, sessionSetCookie, setupPassword, skipSetup, MIN_PASSWORD } from "@/server/auth";
+import { publicOrigin, remoteEnabled } from "@/server/remote";
 
 export const runtime = "nodejs";
 
@@ -20,6 +21,8 @@ export async function POST(req: Request) {
   if (authState().configured) return Response.json({ ok: false }, { status: 409 });
 
   if (body.skip) {
+    // Never skippable on a deployment that is reachable from elsewhere.
+    if (publicOrigin() || remoteEnabled()) return Response.json({ ok: false }, { status: 403 });
     skipSetup();
     return Response.json({ ok: true });
   }

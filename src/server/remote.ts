@@ -26,6 +26,27 @@ export function remoteEnabled(): boolean {
   }
 }
 
+/* ---- Server deployment: behind a trusted reverse proxy (P8) ---- */
+
+/** Set EASYAGENT_PUBLIC_ORIGIN to the address users type, e.g.
+ *  `https://agent.example.com`, when a reverse proxy (Caddy/nginx) terminates
+ *  TLS and forwards to this app on loopback. The app itself keeps listening on
+ *  127.0.0.1 — it is never exposed directly — but must accept that Host and
+ *  mark cookies Secure. Parsed once: an operator-set env var, not user input.
+ *  Invalid values are ignored rather than half-applied. */
+export function publicOrigin(): { host: string; secure: boolean } | null {
+  const raw = process.env.EASYAGENT_PUBLIC_ORIGIN?.trim();
+  if (!raw) return null;
+  try {
+    const u = new URL(raw);
+    if (u.protocol !== "https:" && u.protocol !== "http:") return null;
+    if (!u.host) return null;
+    return { host: u.host.toLowerCase(), secure: u.protocol === "https:" };
+  } catch {
+    return null;
+  }
+}
+
 /** Non-loopback IPv4 addresses, so the UI can show where to reach the app. */
 export function localAddresses(): string[] {
   const out: string[] = [];
