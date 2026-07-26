@@ -34,14 +34,55 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
   const [account, setAccount] = useState<AccountData | null>(null);
   const [accBusy, setAccBusy] = useState<string | null>(null);
 
+  // P7 — app password state (set/change/remove) + logout.
+  const setHttps = useAgent((s) => s.setHttps);
+  const [auth, setAuth] = useState<{ configured: boolean; authed: boolean } | null>(null);
+  const [pwMode, setPwMode] = useState<null | "set" | "change" | "remove">(null);
+  const [pwCur, setPwCur] = useState("");
+  const [pwNew, setPwNew] = useState("");
+  const [pwNew2, setPwNew2] = useState("");
+  const [pwErr, setPwErr] = useState<string | null>(null);
+
   const confirmWord = t("confirmWord");
   const headers = (): Record<string, string> => ({ "content-type": "application/json", ...(token ? { "x-ccw-token": token } : {}) });
 
   const refreshAccount = () => fetch("/api/account/status").then((r) => r.json()).then(setAccount).catch(() => {});
+  const refreshAuth = () => fetch("/api/auth/status").then((r) => r.json()).then(setAuth).catch(() => {});
 
   useEffect(() => {
     refreshAccount();
+    void refreshAuth();
   }, []);
+
+  const openPwMode = (m: "set" | "change" | "remove") => {
+    setPwMode(m);
+    setPwCur("");
+    setPwNew("");
+    setPwNew2("");
+    setPwErr(null);
+  };
+  const submitPw = async () => {
+    setPwErr(null);
+    if (pwMode === "set" || pwMode === "change") {
+      if (pwNew.length < 8) return setPwErr(t("setupShort"));
+      if (pwNew !== pwNew2) return setPwErr(t("setupMismatch"));
+    }
+    const call = (url: string, body: object) =>
+      fetch(url, { method: "POST", headers: headers(), body: JSON.stringify(body) }).catch(() => null);
+    const r =
+      pwMode === "set"
+        ? await call("/api/auth/setup", { password: pwNew })
+        : pwMode === "change"
+          ? await call("/api/auth/password", { current: pwCur, next: pwNew })
+          : await call("/api/auth/password", { current: pwCur, next: null });
+    if (!r?.ok) return setPwErr(r?.status === 401 ? t("loginWrong") : t("toastAuthOps"));
+    setPwMode(null);
+    await refreshAuth();
+  };
+  const appLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST", headers: headers() }).catch(() => {});
+    window.location.href = "/login";
+  };
 
   const toggleNotifications = async (on: boolean) => {
     if (on) {
@@ -164,6 +205,69 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                 </label>
               </div>
             )}
+          </section>
+
+          {/* -------- P7 — Access (app password + HTTPS) -------- */}
+          <section className="settings-section">
+            <h3><Icon name="shield" size={15} /> {t("secAccess")}</h3>
+            <p className="settings-sub">{auth?.configured ? t("accessPwOn") : t("accessPwOff")}</p>
+            {pwMode === null ? (
+              <div className="access-row">
+                {auth?.configured ? (
+                  <>
+                    <button className="btn btn-ghost btn-sm" onClick={() => openPwMode("change")}>{t("accessChangePw")}</button>
+                    <button className="btn btn-ghost btn-sm" onClick={() => openPwMode("remove")}>{t("accessRemovePw")}</button>
+                    <button className="btn btn-ghost btn-sm" onClick={() => void appLogout()}>{t("accessLogout")}</button>
+                  </>
+                ) : (
+                  <button className="btn btn-ghost btn-sm" onClick={() => openPwMode("set")}>{t("accessSetPw")}</button>
+                )}
+              </div>
+            ) : (
+              <div className="access-form">
+                {(pwMode === "change" || pwMode === "remove") && (
+                  <input
+                    className="field-input"
+                    type="password"
+                    autoFocus
+                    placeholder={t("accessCurrentPw")}
+                    value={pwCur}
+                    onChange={(e) => setPwCur(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && void submitPw()}
+                  />
+                )}
+                {pwMode !== "remove" && (
+                  <>
+                    <input
+                      className="field-input"
+                      type="password"
+                      autoFocus={pwMode === "set"}
+                      placeholder={t("setupPw")}
+                      value={pwNew}
+                      onChange={(e) => setPwNew(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && void submitPw()}
+                    />
+                    <input
+                      className="field-input"
+                      type="password"
+                      placeholder={t("setupPw2")}
+                      value={pwNew2}
+                      onChange={(e) => setPwNew2(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && void submitPw()}
+                    />
+                  </>
+                )}
+                {pwErr && <p className="red-warning">{pwErr}</p>}
+                <div className="access-row">
+                  <button className="btn btn-primary btn-sm" onClick={() => void submitPw()}>
+                    {pwMode === "set" ? t("setupActivate") : pwMode === "change" ? t("accessChangePw") : t("accessRemovePw")}
+                  </button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setPwMode(null)}>{t("cancel")}</button>
+                </div>
+              </div>
+            )}
+            <Toggle label={t("httpsLabel")} checked={settings.https} onChange={(v) => void setHttps(v)} />
+            <p className="settings-sub">{t("httpsHint")}</p>
           </section>
 
           {/* -------- Connections (MCP) -------- */}

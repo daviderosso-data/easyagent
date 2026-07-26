@@ -1,6 +1,23 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { NextRequest } from "next/server";
 import { proxy } from "@/proxy";
+import { skipSetup } from "@/server/auth";
+
+// P7 added an auth gate to the proxy; park it in the "skipped" state so these
+// tests keep exercising only the origin guard (see proxy-auth.test.ts).
+let dir: string;
+beforeAll(() => {
+  dir = mkdtempSync(join(tmpdir(), "ea-origin-"));
+  process.env.EASYAGENT_DIR = dir;
+  skipSetup();
+});
+afterAll(() => {
+  delete process.env.EASYAGENT_DIR;
+  rmSync(dir, { recursive: true, force: true });
+});
 
 function req(headers: Record<string, string>, method = "GET"): NextRequest {
   return new NextRequest("http://localhost:3000/", { method, headers });

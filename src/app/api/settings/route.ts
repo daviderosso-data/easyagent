@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { loadSettings, saveSettings } from "@/server/settings-store";
 import { tokenValid } from "@/server/security";
+import { ensureCert } from "@/server/tls";
 import type { AppSettings } from "@/lib/settings";
 
 export const runtime = "nodejs";
@@ -26,6 +27,7 @@ const SettingsSchema = z.object({
   security: SecuritySchema,
   cwd: z.string().nullable(),
   notifications: z.boolean().default(false),
+  https: z.boolean().default(false),
 });
 
 export async function PUT(req: Request) {
@@ -35,6 +37,10 @@ export async function PUT(req: Request) {
     body = SettingsSchema.parse(await req.json());
   } catch {
     return Response.json({ error: "Invalid settings" }, { status: 400 });
+  }
+  // P7 — enabling HTTPS needs the self-signed cert on disk before restart.
+  if (body.https && !ensureCert().ok) {
+    return Response.json({ ok: false, error: "tls" }, { status: 400 });
   }
   saveSettings(body);
   return Response.json({ ok: true });

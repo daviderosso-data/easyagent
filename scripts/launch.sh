@@ -21,7 +21,12 @@ unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN 2>/dev/null
 
 HOST="127.0.0.1"
 PORT="${PORT:-3000}"
-URL="http://${HOST}:${PORT}"
+
+# P7: HTTPS can be switched on from Settings -> Access; the flag lives in
+# ~/.easyagent/settings.json and server.mjs reads it at boot.
+PROTO=$(node -e 'try{const s=require(require("os").homedir()+"/.easyagent/settings.json");process.stdout.write(s.https===true?"https":"http")}catch(e){process.stdout.write("http")}' 2>/dev/null)
+if [ "${PROTO}" != "https" ]; then PROTO="http"; fi
+URL="${PROTO}://${HOST}:${PORT}"
 
 open_browser() {
   if command -v open >/dev/null 2>&1; then open "${URL}"
@@ -63,21 +68,21 @@ if [ "${NEED_BUILD}" = "1" ]; then
   npm run build || { echo "!! App build failed."; pause_and_exit 1; }
 fi
 
-# Already serving? Just open the browser.
-if curl -s -m 2 "${URL}/api/config" >/dev/null 2>&1; then
+# Already serving? Just open the browser. (-k: the local cert is self-signed.)
+if curl -sk -m 2 "${URL}/api/config" >/dev/null 2>&1; then
   echo "> easyagent is already running."
   open_browser
   exit 0
 fi
 
 echo "> Starting the local server at ${URL} ..."
-npx next start -H "${HOST}" -p "${PORT}" &
+HOST="${HOST}" PORT="${PORT}" node server.mjs &
 SERVER_PID=$!
 
 echo "> Waiting for the server to be ready..."
 i=0
 while [ "${i}" -lt 60 ]; do
-  if curl -s -m 2 "${URL}/api/config" >/dev/null 2>&1; then break; fi
+  if curl -sk -m 2 "${URL}/api/config" >/dev/null 2>&1; then break; fi
   sleep 0.5
   i=$((i + 1))
 done

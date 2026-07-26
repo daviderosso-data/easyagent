@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { authState, sessionValid, SESSION_COOKIE } from "@/server/auth";
 
 // Only loopback hosts may talk to the server. This — together with binding to
 // 127.0.0.1 — defeats LAN access and DNS-rebinding (the attacker's page resolves
@@ -48,6 +49,26 @@ export function proxy(req: NextRequest): NextResponse {
       if (!hostAllowed(new URL(referer).host)) return reject("Origine non consentita.");
     } catch {
       /* ignore malformed referer */
+    }
+  }
+
+  // 4. P7 — app-level auth gate. Active once a password is configured; before
+  // the first-run choice (password or skip) only pages are steered to /login.
+  const path = req.nextUrl.pathname;
+  const openPath =
+    path === "/login" ||
+    path.startsWith("/api/auth/") ||
+    path === "/api/session-token" || // anti-CSRF token, needed by /login itself
+    path.startsWith("/_next/");
+  if (!openPath) {
+    const st = authState();
+    if (st.configured) {
+      if (!sessionValid(req.cookies.get(SESSION_COOKIE)?.value)) {
+        if (path.startsWith("/api/")) return NextResponse.json({ error: "auth" }, { status: 401 });
+        return NextResponse.redirect(new URL("/login", req.url));
+      }
+    } else if (!st.skipped && !path.startsWith("/api/")) {
+      return NextResponse.redirect(new URL("/login", req.url));
     }
   }
 
