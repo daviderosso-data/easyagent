@@ -91,6 +91,10 @@ catastrophic commands and secret reads blocked.
 
 - Runs locally only, bound to `127.0.0.1`; a request-origin guard rejects any cross-site or off-machine
   request.
+- Optional app password (Settings → Access), proposed once at first run and skippable. When set, every page
+  and API needs a signed-in session; the password is scrypt-hashed and login attempts are rate-limited.
+  Optional HTTPS with a locally generated certificate lives in the same place (off by default — on
+  `127.0.0.1` traffic never leaves your machine).
 - Uses your own Claude Code credentials (subscription or API key); the app never sees or stores them, and
   strips API-key environment variables so turns use your subscription.
 - In Locked and Standard the agent is confined to `~/easyagent` and cannot read your secrets (`~/.ssh`,
@@ -107,7 +111,9 @@ sandbox enforce the security policy, and mutating actions are surfaced as an app
 Local state lives in your home folder, outside the repo:
 
 - `~/easyagent/` — your project folders.
-- `~/.easyagent/` — app settings, project metadata, workspace layout and usage stats.
+- `~/.easyagent/` — app settings, project metadata, workspace layout and usage stats. If you set an app
+  password, its hash and your sessions live here too (`auth.json`, `auth-sessions.json`), alongside the
+  HTTPS certificate (`tls/`) when you enable it.
 
 ## License
 

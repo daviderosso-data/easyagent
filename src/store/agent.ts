@@ -204,6 +204,7 @@ interface AppState {
   setLang: (l: Lang) => void;
   setTheme: (t: Theme) => void;
   setNotifications: (on: boolean) => void;
+  setHttps: (on: boolean) => Promise<void>;
   applySettings: (s: AppSettings) => void;
   applyProfile: (p: SecurityConfig["profile"]) => void;
   updateSecurity: (patch: Partial<SecurityConfig>) => void;
@@ -491,6 +492,20 @@ export const useAgent = create<AppState>((set, get) => ({
     const next = { ...settings, notifications };
     set({ settings: next });
     void persist(next, token);
+  },
+
+  // P7 — HTTPS toggle. Not optimistic: the server must create the certificate
+  // first, so the switch only flips once that succeeded.
+  setHttps: async (https) => {
+    const { settings, token } = get();
+    const next = { ...settings, https };
+    try {
+      const r = await fetch("/api/settings", { method: "PUT", headers: authHeaders(token), body: JSON.stringify(next) });
+      if (!r.ok) throw new Error();
+      set({ settings: next });
+    } catch {
+      get().pushToast("toastTls");
+    }
   },
 
   applySettings: (s) => set({ settings: s, lang: s.lang }),

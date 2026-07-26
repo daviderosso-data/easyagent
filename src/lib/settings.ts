@@ -35,6 +35,8 @@ export interface AppSettings {
   cwd: string | null;
   /** Desktop notifications when the app is in the background. */
   notifications: boolean;
+  /** Serve over HTTPS with the local self-signed cert (applies on restart). */
+  https: boolean;
 }
 
 /** The three presets. Users can then tweak individual toggles. */
@@ -75,6 +77,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   security: PROFILES.locked,
   cwd: null,
   notifications: false,
+  https: false,
 };
 
 /** Config used for orchestration turns: fully autonomous (no approval prompts,

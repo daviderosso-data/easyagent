@@ -3268,3 +3268,69 @@ textarea:focus-visible,
   color: var(--brand);
   background: var(--brand-soft);
 }
+
+/* ---- P7 — login / first-run setup ---- */
+.login-wrap {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  padding: 20px;
+}
+.login-card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--ds-radius-lg);
+  box-shadow: var(--shadow);
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink);
+}
+.login-brand h1 {
+  margin: 0;
+  font-size: 19px;
+}
+.login-intro {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+.login-err {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--red, #c0392b);
+}
+.login-skip {
+  font-size: 12.5px;
+  align-self: center;
+}
+/* Settings → Access */
+.access-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0;
+  max-width: 320px;
+}
+.access-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+}
+.access-row .field-input {
+  flex: 1;
+  min-width: 140px;
+}

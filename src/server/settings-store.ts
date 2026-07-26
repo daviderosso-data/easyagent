@@ -6,7 +6,8 @@ import { migrateLegacyDataOnce } from "@/server/migrate-legacy";
 
 migrateLegacyDataOnce();
 
-const DIR = join(homedir(), ".easyagent");
+// EASYAGENT_DIR override keeps tests and server.mjs consistent (P7).
+const DIR = process.env.EASYAGENT_DIR || join(homedir(), ".easyagent");
 const FILE = join(DIR, "settings.json");
 
 export function loadSettings(): AppSettings {

@@ -32,8 +32,11 @@ export default tseslint.config(
     },
   },
   {
-    // Tests and Node tooling scripts.
+    // Tests and Node tooling scripts (server.mjs runs under plain Node).
     files: ["tests/**/*.ts", "*.mts", "*.mjs"],
+    languageOptions: {
+      globals: { process: "readonly", console: "readonly" },
+    },
     rules: {
       "@typescript-eslint/no-non-null-assertion": "off",
     },
