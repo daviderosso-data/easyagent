@@ -37,6 +37,9 @@ export interface AppSettings {
   notifications: boolean;
   /** Serve over HTTPS with the local self-signed cert (applies on restart). */
   https: boolean;
+  /** P7.1 — listen on every interface so a phone can reach the app. Requires
+   *  an app password and https; applies on restart. */
+  remote: boolean;
 }
 
 /** The three presets. Users can then tweak individual toggles. */
@@ -78,6 +81,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   cwd: null,
   notifications: false,
   https: false,
+  remote: false,
 };
 
 /** Config used for orchestration turns: fully autonomous (no approval prompts,

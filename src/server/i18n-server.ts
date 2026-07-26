@@ -12,6 +12,7 @@ const REASONS: Record<string, { en: string; it: string }> = {
   broaddelete: { en: "may delete multiple files", it: "può eliminare più file" },
   perms: { en: "changes file permissions", it: "cambia i permessi dei file" },
   kill: { en: "stops other running programs", it: "termina altri programmi in esecuzione" },
+  bundle: { en: "copies a whole folder, which can include secret files", it: "copia un'intera cartella, inclusi eventuali file segreti" },
   mcp: { en: "uses an external connection, which is turned off in the Locked profile", it: "usa un collegamento esterno, disattivato nel profilo Blindato" },
 };
 

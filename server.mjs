@@ -9,17 +9,35 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import next from "next";
 
-const host = process.env.HOST || "127.0.0.1";
 const port = parseInt(process.env.PORT || "3000", 10);
 const dir = process.env.EASYAGENT_DIR || join(homedir(), ".easyagent");
 
-let useTls = false;
-let cred = null;
+let settings = {};
 try {
-  useTls = JSON.parse(readFileSync(join(dir, "settings.json"), "utf8")).https === true;
+  settings = JSON.parse(readFileSync(join(dir, "settings.json"), "utf8"));
 } catch {
-  /* no settings yet → HTTP */
+  /* no settings yet → defaults */
 }
+
+// P7.1 — remote access binds every interface instead of loopback. It is only
+// honoured with an app password AND https: the same floor the settings route
+// enforces, re-checked here so a hand-edited file can't open the door.
+const hasPassword = (() => {
+  try {
+    const a = JSON.parse(readFileSync(join(dir, "auth.json"), "utf8"));
+    return !!(a.hash && a.salt);
+  } catch {
+    return false;
+  }
+})();
+let useTls = settings.https === true;
+const remote = settings.remote === true && useTls && hasPassword;
+if (settings.remote === true && !remote) {
+  console.warn("[easyagent] Remote access is enabled but needs an app password and HTTPS - staying on 127.0.0.1.");
+}
+const host = process.env.HOST || (remote ? "0.0.0.0" : "127.0.0.1");
+
+let cred = null;
 if (useTls) {
   try {
     cred = {
@@ -31,8 +49,11 @@ if (useTls) {
     console.warn("[easyagent] HTTPS is enabled but the certificate is missing - falling back to HTTP.");
   }
 }
-// Routes read this to mark the session cookie Secure.
+// Routes read these: the cookie is Secure under TLS, and Settings shows
+// whether remote access is actually being served (vs. merely configured —
+// the flag only takes effect on the next boot).
 process.env.EASYAGENT_HTTPS = useTls ? "1" : "0";
+process.env.EASYAGENT_REMOTE_SERVING = remote ? "1" : "0";
 
 const app = next({ dev: false, hostname: host, port });
 const handle = app.getRequestHandler();
@@ -40,5 +61,7 @@ await app.prepare();
 
 const server = useTls ? createHttps(cred, handle) : createHttp(handle);
 server.listen(port, host, () => {
-  console.log(`> easyagent ready at ${useTls ? "https" : "http"}://${host}:${port}`);
+  const scheme = useTls ? "https" : "http";
+  console.log(`> easyagent ready at ${scheme}://${remote ? "127.0.0.1" : host}:${port}`);
+  if (remote) console.log(`> remote access is ON - reachable on this network at ${scheme}://<your-ip>:${port}`);
 });

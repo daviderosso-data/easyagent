@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAgent } from "@/store/agent";
 import { useT } from "@/i18n";
+import type { MsgKey } from "@/i18n/messages";
 import { detectProfile, type SecurityProfile, type Lang, type Theme } from "@/lib/settings";
 import { ConnectionsSection } from "@/components/ConnectionsSection";
 import { Icon } from "@/components/icons";
@@ -36,6 +37,28 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
 
   // P7 — app password state (set/change/remove) + logout.
   const setHttps = useAgent((s) => s.setHttps);
+  // P7.1 — remote access (needs a password; implies https).
+  const setRemoteAccess = useAgent((s) => s.setRemoteAccess);
+  const [remote, setRemote] = useState<{
+    wanted: boolean;
+    active: boolean;
+    needPassword: boolean;
+    addresses: string[];
+    port: string;
+  } | null>(null);
+  // Looked up only when asked: opening Settings must not call a third party.
+  const [publicIp, setPublicIp] = useState<string | null>(null);
+  const [ipBusy, setIpBusy] = useState(false);
+  const [ipErr, setIpErr] = useState(false);
+
+  const findPublicIp = async () => {
+    setIpBusy(true);
+    setIpErr(false);
+    const d = await fetch("/api/remote/public-ip").then((r) => r.json()).catch(() => null);
+    if (d?.ok && d.ip) setPublicIp(d.ip);
+    else setIpErr(true);
+    setIpBusy(false);
+  };
   const [auth, setAuth] = useState<{ configured: boolean; authed: boolean } | null>(null);
   const [pwMode, setPwMode] = useState<null | "set" | "change" | "remove">(null);
   const [pwCur, setPwCur] = useState("");
@@ -48,10 +71,12 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
 
   const refreshAccount = () => fetch("/api/account/status").then((r) => r.json()).then(setAccount).catch(() => {});
   const refreshAuth = () => fetch("/api/auth/status").then((r) => r.json()).then(setAuth).catch(() => {});
+  const refreshRemote = () => fetch("/api/remote/info").then((r) => r.json()).then(setRemote).catch(() => {});
 
   useEffect(() => {
     refreshAccount();
     void refreshAuth();
+    void refreshRemote();
   }, []);
 
   const openPwMode = (m: "set" | "change" | "remove") => {
@@ -266,8 +291,61 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                 </div>
               </div>
             )}
-            <Toggle label={t("httpsLabel")} checked={settings.https} onChange={(v) => void setHttps(v)} />
+            <Toggle
+              label={t("httpsLabel")}
+              checked={settings.https}
+              onChange={(v) => void setHttps(v)}
+            />
             <p className="settings-sub">{t("httpsHint")}</p>
+
+            {/* P7.1 — remote access. Gated on having a password. */}
+            <Toggle
+              label={t("remoteLabel")}
+              checked={settings.remote}
+              onChange={async (v) => {
+                await setRemoteAccess(v);
+                await refreshRemote();
+              }}
+            />
+            <p className="settings-sub">{t("remoteHint")}</p>
+            {!auth?.configured && <p className="red-warning">{t("remoteNeedPw")}</p>}
+            {remote?.active && (
+              <div className="remote-on">
+                <Icon name="globe" size={13} /> {t("remoteOnBanner")}
+              </div>
+            )}
+            {settings.remote && !remote?.active && <p className="settings-sub">{t("remoteWanted")}</p>}
+            {settings.remote && remote && (
+              <div className="remote-addr">
+                <span className="settings-sub">{t("remoteReach")}</span>
+
+                {remote.addresses.length > 0 && (
+                  <>
+                    <span className="addr-label">{t("remoteSameWifi")}</span>
+                    {remote.addresses.map((ip) => (
+                      <AddressRow key={ip} url={`https://${ip}:${remote.port}/m`} t={t} />
+                    ))}
+                  </>
+                )}
+
+                <span className="addr-label">{t("remoteOutside")}</span>
+                {publicIp ? (
+                  <>
+                    <AddressRow url={`https://${publicIp}:${remote.port}/m`} t={t} />
+                    <p className="remote-warn">{t("remotePortHint").replace("{p}", remote.port)}</p>
+                  </>
+                ) : (
+                  <>
+                    <button className="btn btn-ghost btn-sm" disabled={ipBusy} onClick={() => void findPublicIp()}>
+                      {t("remoteFindIp")}
+                    </button>
+                    {ipErr && <p className="red-warning">{t("remoteIpFailed")}</p>}
+                  </>
+                )}
+
+                <p className="remote-warn">{t("remoteWarn")}</p>
+              </div>
+            )}
           </section>
 
           {/* -------- Connections (MCP) -------- */}
@@ -513,6 +591,29 @@ function ProfileCard({ active, danger, title, desc, onClick }: { id: string; act
       <span className="profile-title">{title}</span>
       <span className="profile-desc">{desc}</span>
     </button>
+  );
+}
+
+/** One address with a copy button — typing an https URL with a port on a phone
+ *  is the kind of chore that makes a feature go unused. */
+function AddressRow({ url, t }: { url: string; t: (k: MsgKey) => string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard blocked — the address is selectable anyway */
+    }
+  };
+  return (
+    <div className="addr-row">
+      <code>{url}</code>
+      <button className="btn btn-ghost btn-sm" onClick={() => void copy()}>
+        {copied ? t("remoteCopied") : t("remoteCopy")}
+      </button>
+    </div>
   );
 }
 

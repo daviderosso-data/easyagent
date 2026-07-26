@@ -19,6 +19,8 @@ export interface SendRequest {
    *  orchestration security config. The server validates it; a bare flag from
    *  the client can never downgrade the profile. */
   orchestrationGrant?: string;
+  /** Panel label, so the P7.1 remote view can name this turn. */
+  roleLabel?: string;
 }
 
 /** Events streamed from the server (SSE) to the browser. */
@@ -51,6 +53,13 @@ export type AgentEvent =
       risk: "normal" | "red";
       /** Machine-readable danger category; localized on the client. */
       severity: string;
+    }
+  | {
+      /** P7.1 — the approval was decided elsewhere (e.g. from the phone), so
+       *  this client should drop it from its pending list. */
+      type: "approval_resolved";
+      approvalId: string;
+      decision: "allow" | "deny";
     }
   | {
       type: "done";

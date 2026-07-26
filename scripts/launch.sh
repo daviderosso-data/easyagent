@@ -19,14 +19,17 @@ export PATH="${HOME}/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$
 # Force the user's Claude subscription (an API key would take precedence).
 unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN 2>/dev/null
 
-HOST="127.0.0.1"
+# The address WE open in the browser. Never exported as HOST: server.mjs picks
+# the bind address itself (0.0.0.0 when remote access is on), and forcing HOST
+# here would silently pin it back to loopback.
+LOCAL_HOST="127.0.0.1"
 PORT="${PORT:-3000}"
 
 # P7: HTTPS can be switched on from Settings -> Access; the flag lives in
 # ~/.easyagent/settings.json and server.mjs reads it at boot.
 PROTO=$(node -e 'try{const s=require(require("os").homedir()+"/.easyagent/settings.json");process.stdout.write(s.https===true?"https":"http")}catch(e){process.stdout.write("http")}' 2>/dev/null)
 if [ "${PROTO}" != "https" ]; then PROTO="http"; fi
-URL="${PROTO}://${HOST}:${PORT}"
+URL="${PROTO}://${LOCAL_HOST}:${PORT}"
 
 open_browser() {
   if command -v open >/dev/null 2>&1; then open "${URL}"
@@ -76,7 +79,7 @@ if curl -sk -m 2 "${URL}/api/config" >/dev/null 2>&1; then
 fi
 
 echo "> Starting the local server at ${URL} ..."
-HOST="${HOST}" PORT="${PORT}" node server.mjs &
+PORT="${PORT}" node server.mjs &
 SERVER_PID=$!
 
 echo "> Waiting for the server to be ready..."

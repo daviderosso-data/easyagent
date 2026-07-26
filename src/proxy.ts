@@ -1,23 +1,38 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { authState, sessionValid, SESSION_COOKIE } from "@/server/auth";
+import { publicOrigin, remoteEnabled } from "@/server/remote";
 
 // Only loopback hosts may talk to the server. This — together with binding to
 // 127.0.0.1 — defeats LAN access and DNS-rebinding (the attacker's page resolves
 // to 127.0.0.1 but the browser still sends the attacker's Host/Origin).
 const LOOPBACK_HOST = /^(127\.0\.0\.1|localhost|\[::1\]|::1)(:\d+)?$/i;
 
-function hostAllowed(h: string | null): boolean {
-  return !!h && LOOPBACK_HOST.test(h.trim());
-}
+const isLoopback = (h: string | null): boolean => !!h && LOOPBACK_HOST.test(h.trim());
 
 function reject(msg: string): NextResponse {
   return new NextResponse(msg, { status: 403, headers: { "content-type": "text/plain; charset=utf-8" } });
 }
 
 export function proxy(req: NextRequest): NextResponse {
-  // 1. Host must be loopback.
-  if (!hostAllowed(req.headers.get("host"))) return reject("Accesso non consentito.");
+  // P7.1 — with remote access on, the Host is whatever the phone dialled, so
+  // "must be loopback" is replaced by "Origin/Referer must equal Host". That
+  // keeps the CSRF property (a foreign page still can't forge a same-origin
+  // request) while allowing the app to be reached from another device.
+  const remote = remoteEnabled();
+  // Server deployment: a reverse proxy forwards the public hostname to us on
+  // loopback, so that one name is allowed too (nothing else is).
+  const pub = publicOrigin();
+  const host = req.headers.get("host");
+  const named = (h: string | null) => !!h && !!pub && h.trim().toLowerCase() === pub.host;
+  const hostAllowed = (h: string | null): boolean =>
+    remote
+      ? !!h && !!host && h.trim().toLowerCase() === host.trim().toLowerCase()
+      : isLoopback(h) || named(h);
+
+  // 1. Host must be loopback (or the declared public name, or anything when
+  // serving the LAN directly).
+  if (!remote && !isLoopback(host) && !named(host)) return reject("Accesso non consentito.");
 
   // 2. Browser cross-site requests are refused (blocks CSRF from any website).
   // Exemption per the standard Fetch-Metadata isolation policy: a top-level GET
@@ -34,7 +49,8 @@ export function proxy(req: NextRequest): NextResponse {
     return reject("Origine non consentita.");
   }
 
-  // 3. Origin / Referer (when present) must point at a loopback host.
+  // 3. Origin / Referer (when present) must point at an allowed host —
+  // loopback normally, the request's own host when serving remotely.
   const origin = req.headers.get("origin");
   if (origin && !isTopLevelGetNav) {
     try {
@@ -67,6 +83,12 @@ export function proxy(req: NextRequest): NextResponse {
         if (path.startsWith("/api/")) return NextResponse.json({ error: "auth" }, { status: 401 });
         return NextResponse.redirect(new URL("/login", req.url));
       }
+    } else if (pub || remote) {
+      // Publicly reachable with no password yet: the first-run "continue
+      // without a password" choice must NOT leave the door open here, so the
+      // setup screen is the only thing served until a password exists.
+      if (path.startsWith("/api/")) return NextResponse.json({ error: "auth" }, { status: 401 });
+      return NextResponse.redirect(new URL("/login", req.url));
     } else if (!st.skipped && !path.startsWith("/api/")) {
       return NextResponse.redirect(new URL("/login", req.url));
     }

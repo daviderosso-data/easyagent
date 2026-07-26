@@ -2,6 +2,7 @@ import { z } from "zod";
 import { loadSettings, saveSettings } from "@/server/settings-store";
 import { tokenValid } from "@/server/security";
 import { ensureCert } from "@/server/tls";
+import { remotePreconditions } from "@/server/remote";
 import type { AppSettings } from "@/lib/settings";
 
 export const runtime = "nodejs";
@@ -28,6 +29,7 @@ const SettingsSchema = z.object({
   cwd: z.string().nullable(),
   notifications: z.boolean().default(false),
   https: z.boolean().default(false),
+  remote: z.boolean().default(false),
 });
 
 export async function PUT(req: Request) {
@@ -39,8 +41,17 @@ export async function PUT(req: Request) {
     return Response.json({ error: "Invalid settings" }, { status: 400 });
   }
   // P7 — enabling HTTPS needs the self-signed cert on disk before restart.
-  if (body.https && !ensureCert().ok) {
+  // Remote access implies it, so generate the cert for that case too.
+  if ((body.https || body.remote) && !ensureCert().ok) {
     return Response.json({ ok: false, error: "tls" }, { status: 400 });
+  }
+  // P7.1 — opening the app beyond loopback is refused unless a password
+  // exists; the client can't wave this through.
+  if (body.remote) {
+    body.https = true;
+    if (remotePreconditions().needPassword) {
+      return Response.json({ ok: false, error: "password-required" }, { status: 400 });
+    }
   }
   saveSettings(body);
   return Response.json({ ok: true });

@@ -104,12 +104,84 @@ localhost/127.0.0.1/::1) and takes effect on restart. Default stays HTTP on
 `next start` can't serve TLS, so `server.mjs` (custom server) picks the scheme
 at boot from the settings flag and falls back to HTTP if the cert is missing.
 
-## P7.1 — Secure remote access (next)
+## P7.1 — Secure remote access (shipped 2026-07-26)
 
-Control sessions from a phone: read-only view of panels plus approve/deny for
-pending approvals. Explicitly scoped down — no remote IDE. Builds on P7: remote
-access must REQUIRE the app password (no "skip" path once the server binds to
-anything but loopback) and HTTPS on.
+Control sessions from a phone: read-only view of live turns plus approve/deny
+for pending approvals, at `/m`. Explicitly scoped down — no remote IDE, no way
+to start a turn, no transcript, no editor.
+
+**Architecture.** The server used to keep only the approval *resolvers*
+(`Map<approvalId, resolve>`); the title/risk travelled the SSE stream and lived
+solely in the browser that started the turn, which a phone can never join. The
+map now stores `{resolve, meta}`, so `/api/remote/state` can list what is
+waiting (plus a `target` — the file path or command — since the phone has no
+diff view and must not approve blind). Deciding from the phone reuses
+`/api/chat/approve`; the turn now carries an `emit` hook, so the desktop's
+stream gets an `approval_resolved` event and its modal disappears.
+
+**Network.** Off by default. Settings → Access has an "Access from your phone"
+toggle: it binds every interface instead of loopback and is refused unless an
+app password exists — it also forces HTTPS on. Those preconditions are checked
+in the settings route AND re-checked at boot in `server.mjs`, so a hand-edited
+settings file or a deleted certificate cannot open the door. The proxy's
+loopback rule is replaced (only while remote is on) by "Origin/Referer must
+equal Host", keeping the CSRF property for any hostname. Red actions need a
+second, deliberate tap on the phone.
+
+Reaching the machine from outside the local network still needs a port forward
+on the router, which exposes the app to the internet behind the password and
+rate limit alone. Adequate for testing; the planned server deployment should
+add real login + 2FA before it is left on.
+
+**P7.2 — The address to type (2026-07-26).** Settings → Access only showed the
+LAN address, which is useless from outside the house. It now lists both, each
+with a copy button (typing an https URL with a port on a phone is the chore
+that makes a feature go unused): "On the same Wi-Fi" from the local interfaces,
+and "From outside your home" behind a *Find my external address* button. That
+lookup calls an external echo service (api.ipify.org), so it is on demand only
+— opening Settings must never call a third party silently — with a 5s timeout,
+and the reply is rendered only after it validates as a bare IP address. The
+external row carries the port-forward caveat.
+
+## P8 — Server deployment (in progress)
+
+Owner intent 2026-07-26: run easyagent on a VPS (Hostinger KVM 2, Ubuntu
+24.04), with "a proper login with 2FA" once it lives there.
+
+**Shipped — behind a reverse proxy.** P7.1's remote mode binds every interface
+and needs the app to serve TLS itself, which is the wrong shape for a server:
+there, Caddy should hold 443 with a real Let's Encrypt certificate and forward
+to the app on loopback. `EASYAGENT_PUBLIC_ORIGIN` declares the public address —
+the proxy then accepts that one Host (and loopback) and nothing else, session
+cookies are marked Secure, and, crucially, **a password stops being optional**:
+the first-run "continue without one" is removed from the UI *and* refused by
+the route, so a public deployment can never be one click from open. A prior
+local "skip" does not carry over. `EASYAGENT_MAX_TURNS` caps parallel turns for
+small boxes. Full instructions in `docs/vps.md`.
+
+**Shipped — project-local secrets (2026-07-26).** The long-documented hole:
+the Bash secret classifier is a string matcher, so naming `.env` was caught but
+`cat .e*`, `grep -r . .` or `tar czf x .` were not, and `<project>/.env` was
+absent from the sandbox deny-list (which only covered `$HOME`) — so for
+project-local secrets the evadable matcher was the *only* gate. Now two layers:
+
+1. The sandbox gets `filesystem.denyRead` for `.env*` and credential dotfiles
+   inside the project, at any depth. This is the real fix — it kills every
+   evasion at once, because the bytes never become readable. Verified with a
+   live turn: `grep -r SECRET .` runs and reports
+   `cannot read .env: Operation not permitted`.
+2. The classifier additionally catches the two clearest evasion shapes for when
+   no sandbox is available: globs that could expand onto a secret (`cat .e*`),
+   and packing/copying a whole tree (`tar czf`, `cp -r`) — the latter as a
+   prompt (`bundle` → red), not a block, since it is ordinary work.
+
+Recursive search is deliberately NOT flagged: it is far too common to prompt
+on, and layer 1 already covers it. Committed templates (`.env.example`) stay
+readable through the Read tool.
+
+**Still open — the 2FA the owner asked for.** The gate remains one password
+plus the login rate limit. Until then `docs/vps.md` points at an
+authenticating proxy for anything valuable.
 
 ## Postponed
 

@@ -30,6 +30,7 @@ const SEVERITY_REASON: Record<string, MsgKey> = {
   perms: "reasonPerms",
   kill: "reasonKill",
   mcp: "reasonMcp",
+  bundle: "reasonBundle",
 };
 
 export function riskReason(severity: string, lang: Lang): string | null {

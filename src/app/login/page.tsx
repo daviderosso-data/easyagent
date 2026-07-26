@@ -15,6 +15,8 @@ interface AuthStatus {
   configured: boolean;
   skipped: boolean;
   authed: boolean;
+  /** Reachable beyond this machine → no "continue without a password". */
+  mustSetPassword?: boolean;
   lang: Lang;
 }
 
@@ -122,7 +124,7 @@ export default function LoginPage() {
         <button className="btn btn-primary full-btn" disabled={busy || !pw} onClick={() => void submit()}>
           {st.configured ? t("loginEnter") : t("setupActivate")}
         </button>
-        {!st.configured && (
+        {!st.configured && !st.mustSetPassword && (
           <button className="link-btn login-skip" disabled={busy} onClick={() => void skip()}>
             {t("setupSkip")}
           </button>

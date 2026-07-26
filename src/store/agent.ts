@@ -205,6 +205,7 @@ interface AppState {
   setTheme: (t: Theme) => void;
   setNotifications: (on: boolean) => void;
   setHttps: (on: boolean) => Promise<void>;
+  setRemoteAccess: (on: boolean) => Promise<void>;
   applySettings: (s: AppSettings) => void;
   applyProfile: (p: SecurityConfig["profile"]) => void;
   updateSecurity: (patch: Partial<SecurityConfig>) => void;
@@ -498,13 +499,28 @@ export const useAgent = create<AppState>((set, get) => ({
   // first, so the switch only flips once that succeeded.
   setHttps: async (https) => {
     const { settings, token } = get();
-    const next = { ...settings, https };
+    // Remote access requires https; turning it off turns remote off too.
+    const next = { ...settings, https, remote: https ? settings.remote : false };
     try {
       const r = await fetch("/api/settings", { method: "PUT", headers: authHeaders(token), body: JSON.stringify(next) });
       if (!r.ok) throw new Error();
       set({ settings: next });
     } catch {
       get().pushToast("toastTls");
+    }
+  },
+
+  // P7.1 — remote access. The server refuses without an app password and
+  // forces https on, so mirror that here only after it accepted.
+  setRemoteAccess: async (remote) => {
+    const { settings, token } = get();
+    const next = { ...settings, remote, https: remote ? true : settings.https };
+    try {
+      const r = await fetch("/api/settings", { method: "PUT", headers: authHeaders(token), body: JSON.stringify(next) });
+      if (!r.ok) throw new Error();
+      set({ settings: next });
+    } catch {
+      get().pushToast("toastRemote");
     }
   },
 
@@ -1003,6 +1019,7 @@ export const useAgent = create<AppState>((set, get) => ({
         effort: session.effort,
         systemAppend: session.systemAppend,
         orchestrationGrant: session.orchestrationGrant,
+        roleLabel: session.roleLabel,
       },
       onEvent,
       abortController.signal,
@@ -1217,6 +1234,10 @@ function reduce(id: string, e: AgentEvent) {
           { approvalId: e.approvalId, turnId: e.turnId, toolName: e.toolName, input: e.input, title: e.title, risk: e.risk, severity: e.severity },
         ],
       }));
+      break;
+    case "approval_resolved":
+      // P7.1 — decided on another device (the phone): drop the local prompt.
+      updateSession(id, (s) => ({ ...s, pending: s.pending.filter((p) => p.approvalId !== e.approvalId) }));
       break;
     case "done":
       updateSession(id, (s) => ({
