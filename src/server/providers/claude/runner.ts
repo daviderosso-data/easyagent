@@ -17,14 +17,27 @@ import type { TurnRequest } from "@/server/providers/types";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+/** Secret files that live inside a project, at any depth — the ones $HOME-based
+ *  deny lists miss. Kept in sync with SECRET_BASENAMES in command-policy. */
+export function projectSecretGlobs(cwd: string): string[] {
+  const names = [".env", ".env.*", ".netrc", ".npmrc", ".git-credentials", ".pgpass"];
+  return names.flatMap((n) => [`${cwd}/${n}`, `${cwd}/**/${n}`]);
+}
+
 /** OS sandbox: confines Bash writes to cwd and denies secret reads. macOS uses
  *  built-in Seatbelt; Linux uses bubblewrap when available. */
-export function buildSandboxConfig(): Record<string, unknown> {
+export function buildSandboxConfig(cwd?: string): Record<string, unknown> {
   return {
     enabled: true,
     failIfUnavailable: false,
     autoAllowBashIfSandboxed: false,
     allowUnsandboxedCommands: false,
+    // Project-local secrets. The Bash classifier is a string matcher and can be
+    // walked around (`cat .e*`, `grep -r . .`, `tar czf x .`); an OS-level read
+    // deny cannot, because the bytes never become readable to the subprocess.
+    // Only Bash is sandboxed — the Read tool is gated by command-policy, which
+    // still lets committed templates like .env.example through.
+    ...(cwd ? { filesystem: { denyRead: projectSecretGlobs(cwd) } } : {}),
     credentials: {
       files: [
         { path: "~/.ssh", mode: "deny" },
@@ -82,7 +95,7 @@ export async function runClaudeTurn(params: TurnRequest): Promise<void> {
   const classify = makeClassifier(cwd, config);
   const permissionMode = behaviorToMode(config.behavior);
   const { deny, ask } = buildRules(config);
-  const sandbox = config.sandbox ? buildSandboxConfig() : null;
+  const sandbox = config.sandbox ? buildSandboxConfig(cwd) : null;
 
   // Hard gate: runs before everything, applies even under bypassPermissions.
   const preToolGate = async (input: any): Promise<any> => {

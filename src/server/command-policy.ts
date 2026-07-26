@@ -13,7 +13,7 @@ import type { SecurityConfig } from "@/lib/settings";
 export type RiskLevel = "block" | "red" | "normal";
 export type Severity =
   | "catastrophic" | "secret" | "escape" | "install" | "network"
-  | "broaddelete" | "perms" | "kill" | "mcp" | "none";
+  | "broaddelete" | "perms" | "kill" | "mcp" | "bundle" | "none";
 
 export interface Classification {
   level: RiskLevel;
@@ -87,8 +87,43 @@ function writesToProtectedPath(c: string): boolean {
   const targets = [...SYSTEM_PATHS, ...SHELL_PROFILES, `${HOME}/.ssh`];
   return targets.some((p) => c.includes(p) || c.includes(p.replace(HOME, "~")));
 }
+/** Secret basenames a shell glob could expand onto, for the check below. */
+const SECRET_TARGETS = [".env", ".env.local", ".env.production", ".netrc", ".npmrc", ".git-credentials", ".pgpass"];
+
+/** A glob that could expand onto a secret — `cat .e*`, `cat .*`, `head *env*`.
+ *  Naming the file is caught by readsSecret(); this catches spelling it with a
+ *  wildcard instead, which is the cheapest way around a string matcher.
+ *  Deliberately NOT extended to recursive readers (`grep -r`): those are far
+ *  too common to prompt on, and the sandbox's denyRead covers them properly. */
+function globCouldHitSecret(c: string): boolean {
+  for (const raw of c.split(/[\s;|&<>()]+/)) {
+    const tok = raw.replace(/^['"]|['"]$/g, "");
+    if (!tok || !/[*?]/.test(tok) || tok.startsWith("-")) continue;
+    const base = tok.split("/").pop() ?? "";
+    // Only dot-globs and *env*-style patterns; plain "*.ts" can't reach a dotfile.
+    if (!base.startsWith(".") && !/env/i.test(base)) continue;
+    const re = new RegExp(`^${base.split("*").map((p) => p.split("?").map(escapeRe).join(".")).join(".*")}$`);
+    if (SECRET_TARGETS.some((s) => re.test(s))) return true;
+  }
+  return false;
+}
+
+/** Packing or copying a whole tree sweeps up secrets without ever naming one
+ *  (`tar czf /tmp/x.tgz .`, `cp -r . /tmp/out`). Legitimate often enough that
+ *  it asks rather than blocks. */
+function bundlesDirectory(c: string): boolean {
+  // Only CREATING an archive packs things up; extracting or listing one is
+  // harmless. tar's mode letter may come with or without a dash ("tar czf").
+  if (/\b(tar|jar)\s+(--create\b|-?[a-z]*c[a-z]*\b)/.test(c)) return true;
+  if (/\bzip\b/.test(c)) return true; // "unzip" has no word boundary before zip
+  if (/\b7z\s+a\b/.test(c)) return true;
+  if (/\b(cp|rsync)\b[^\n]*(-[a-zA-Z]*[ra]|--recursive|--archive)\b/.test(c)) return true;
+  return false;
+}
+
 function readsSecret(c: string): boolean {
   if (/security\s+find-(generic|internet)-password/.test(c)) return true;
+  if (globCouldHitSecret(c)) return true;
   // Any Bash mention of a .env file counts: a string matcher can't tell reads
   // from writes ("cat .env | curl…"), and the Write tool remains available
   // for legitimately creating env files.
@@ -147,6 +182,7 @@ function severityBash(c: string, cwd: string): Severity {
   if (isInstall(c)) return "install";
   if (isNetwork(c)) return "network";
   if (isBroadDelete(c)) return "broaddelete";
+  if (bundlesDirectory(c)) return "bundle";
   if (writesOutsideCwd(c, cwd)) return "escape";
   if (/\b(chmod|chown|chgrp)\b/.test(c)) return "perms";
   if (/\b(kill|killall|pkill)\b/.test(c)) return "kill";
@@ -167,6 +203,10 @@ export function levelFor(sev: Severity, cfg: SecurityConfig): RiskLevel {
     case "perms":
     case "kill":
       return cfg.blockCatastrophic ? "red" : "normal";
+    // Asks rather than blocks: packing a folder is normal work, and the file
+    // it might sweep up is already unreadable when the sandbox is available.
+    case "bundle":
+      return cfg.blockSecrets ? "red" : "normal";
     case "mcp":
       // Defense in depth: under Locked the primary lever is that no mcpServers
       // are passed to the SDK at all; this makes a stray MCP call an outright

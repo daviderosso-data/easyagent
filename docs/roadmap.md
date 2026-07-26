@@ -159,6 +159,26 @@ the route, so a public deployment can never be one click from open. A prior
 local "skip" does not carry over. `EASYAGENT_MAX_TURNS` caps parallel turns for
 small boxes. Full instructions in `docs/vps.md`.
 
+**Shipped — project-local secrets (2026-07-26).** The long-documented hole:
+the Bash secret classifier is a string matcher, so naming `.env` was caught but
+`cat .e*`, `grep -r . .` or `tar czf x .` were not, and `<project>/.env` was
+absent from the sandbox deny-list (which only covered `$HOME`) — so for
+project-local secrets the evadable matcher was the *only* gate. Now two layers:
+
+1. The sandbox gets `filesystem.denyRead` for `.env*` and credential dotfiles
+   inside the project, at any depth. This is the real fix — it kills every
+   evasion at once, because the bytes never become readable. Verified with a
+   live turn: `grep -r SECRET .` runs and reports
+   `cannot read .env: Operation not permitted`.
+2. The classifier additionally catches the two clearest evasion shapes for when
+   no sandbox is available: globs that could expand onto a secret (`cat .e*`),
+   and packing/copying a whole tree (`tar czf`, `cp -r`) — the latter as a
+   prompt (`bundle` → red), not a block, since it is ordinary work.
+
+Recursive search is deliberately NOT flagged: it is far too common to prompt
+on, and layer 1 already covers it. Committed templates (`.env.example`) stay
+readable through the Read tool.
+
 **Still open — the 2FA the owner asked for.** The gate remains one password
 plus the login rate limit. Until then `docs/vps.md` points at an
 authenticating proxy for anything valuable.
