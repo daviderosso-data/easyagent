@@ -133,6 +133,16 @@ on the router, which exposes the app to the internet behind the password and
 rate limit alone. Adequate for testing; the planned server deployment should
 add real login + 2FA before it is left on.
 
+**P7.2 — The address to type (2026-07-26).** Settings → Access only showed the
+LAN address, which is useless from outside the house. It now lists both, each
+with a copy button (typing an https URL with a port on a phone is the chore
+that makes a feature go unused): "On the same Wi-Fi" from the local interfaces,
+and "From outside your home" behind a *Find my external address* button. That
+lookup calls an external echo service (api.ipify.org), so it is on demand only
+— opening Settings must never call a third party silently — with a 5s timeout,
+and the reply is rendered only after it validates as a bare IP address. The
+external row carries the port-forward caveat.
+
 ## Postponed
 
 - **Gemini engine** — postponed for ToS reasons (see `docs/providers.md`,
