@@ -41,7 +41,10 @@ describe("end() releases the slot and fails closed", () => {
   it("removes the turn and resolves pending approvals as deny", () => {
     const turn = sessionManager.tryCreate(track("end-a"), new AbortController(), 99)!;
     let decided: { allow: boolean } | null = null;
-    turn.pendingApprovals.set("ap1", (d) => { decided = d; });
+    turn.pendingApprovals.set("ap1", {
+      resolve: (d) => { decided = d; },
+      meta: { approvalId: "ap1", turnId: "end-a", toolName: "Write", title: "", risk: "normal", severity: "write", askedAt: 0 },
+    });
     const before = sessionManager.size();
     sessionManager.end("end-a");
     expect(sessionManager.get("end-a")).toBeUndefined();

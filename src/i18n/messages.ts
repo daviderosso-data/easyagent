@@ -508,6 +508,26 @@ export const messages = {
     toastTls: "Couldn't enable HTTPS (certificate creation failed).",
     toastAuthOps: "Couldn't update the access settings.",
 
+    // P7.1 — remote access from a phone
+    remoteLabel: "Access from your phone",
+    remoteHint: "Lets other devices reach easyagent. Needs an app password and turns on HTTPS. Restart easyagent to apply.",
+    remoteNeedPw: "Set an app password first.",
+    remoteOnBanner: "Reachable from other devices",
+    remoteReach: "On your phone open:",
+    remoteWanted: "Active after you restart easyagent.",
+    remoteWarn: "Anyone who can reach this address can try to sign in. Turn it off when you don't need it.",
+    remoteTitle: "Remote",
+    remoteNothing: "Nothing running.",
+    remoteNoApprovals: "No requests waiting.",
+    remoteApprove: "Approve",
+    remoteDeny: "Deny",
+    remoteRedConfirm: "This is a risky action. Approve anyway?",
+    remoteConfirmYes: "Yes, approve",
+    remoteRunning: "running",
+    remoteRefresh: "Refresh",
+    remoteFailed: "Couldn't send the decision.",
+    toastRemote: "Couldn't change remote access (an app password is required).",
+
     // P6.11.2 message queue
     queueBtn: "Queue",
     queueTip: "Runs right after the current turn finishes",
@@ -1029,6 +1049,26 @@ export const messages = {
     httpsHint: "Certificato self-signed: il browser chiederà di fidarsi una volta. Riavvia easyagent per applicare.",
     toastTls: "Impossibile attivare HTTPS (creazione del certificato fallita).",
     toastAuthOps: "Impossibile aggiornare le impostazioni di accesso.",
+
+    // P7.1 — accesso da telefono
+    remoteLabel: "Accesso dal telefono",
+    remoteHint: "Permette ad altri dispositivi di raggiungere easyagent. Richiede la password dell'app e attiva HTTPS. Riavvia easyagent per applicare.",
+    remoteNeedPw: "Imposta prima una password dell'app.",
+    remoteOnBanner: "Raggiungibile da altri dispositivi",
+    remoteReach: "Sul telefono apri:",
+    remoteWanted: "Attivo dopo il riavvio di easyagent.",
+    remoteWarn: "Chiunque raggiunga questo indirizzo può provare ad accedere. Spegnilo quando non ti serve.",
+    remoteTitle: "Remoto",
+    remoteNothing: "Nessuna sessione attiva.",
+    remoteNoApprovals: "Nessuna richiesta in attesa.",
+    remoteApprove: "Approva",
+    remoteDeny: "Rifiuta",
+    remoteRedConfirm: "Azione rischiosa. Approvi lo stesso?",
+    remoteConfirmYes: "Sì, approva",
+    remoteRunning: "in esecuzione",
+    remoteRefresh: "Aggiorna",
+    remoteFailed: "Impossibile inviare la decisione.",
+    toastRemote: "Impossibile cambiare l'accesso remoto (serve la password dell'app).",
 
     // P6.11.2 coda messaggi
     queueBtn: "Accoda",

@@ -12,6 +12,7 @@ import { saveRateLimits } from "@/server/usage-store";
 import { buildMcpConfig, recordMcpStatus } from "@/server/mcp-store";
 import { skillsQueryOptions } from "@/server/skills";
 import { autoAllows } from "@/server/safety-presets";
+import { approvalTarget } from "@/server/session-manager";
 import type { TurnRequest } from "@/server/providers/types";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -119,20 +120,26 @@ export async function runClaudeTurn(params: TurnRequest): Promise<void> {
       return { behavior: "allow", updatedInput: input };
     }
     const approvalId = randomUUID();
-    send({
-      type: "approval_request",
+    const meta = {
       approvalId,
       turnId,
       toolName,
-      input,
       title: opts.title ?? "",
-      risk: level === "red" ? "red" : "normal",
+      target: approvalTarget(input),
+      risk: (level === "red" ? "red" : "normal") as "normal" | "red",
       severity,
-    });
+      askedAt: Date.now(),
+    };
+    send({ type: "approval_request", ...meta, input });
     return new Promise((resolve) => {
-      turn.pendingApprovals.set(approvalId, (decision) => {
-        if (decision.allow) resolve({ behavior: "allow", updatedInput: input });
-        else resolve({ behavior: "deny", message: decision.message ?? "Denied." });
+      // The metadata is kept server-side too, so the P7.1 remote view can list
+      // this approval without having been the client that started the turn.
+      turn.pendingApprovals.set(approvalId, {
+        meta,
+        resolve: (decision) => {
+          if (decision.allow) resolve({ behavior: "allow", updatedInput: input });
+          else resolve({ behavior: "deny", message: decision.message ?? "Denied." });
+        },
       });
     });
   };

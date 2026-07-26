@@ -53,7 +53,7 @@ describe.skipIf(!LIVE)("ollama live tool loop", () => {
       if (e.type === "approval_request") {
         sawApproval = true;
         // Approve asynchronously, like the UI would.
-        setTimeout(() => turn.pendingApprovals.get(e.approvalId)?.({ allow: true }), 50);
+        setTimeout(() => turn.pendingApprovals.get(e.approvalId)?.resolve({ allow: true }), 50);
       }
     };
     try {

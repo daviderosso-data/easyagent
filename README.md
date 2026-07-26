@@ -95,6 +95,9 @@ catastrophic commands and secret reads blocked.
   and API needs a signed-in session; the password is scrypt-hashed and login attempts are rate-limited.
   Optional HTTPS with a locally generated certificate lives in the same place (off by default — on
   `127.0.0.1` traffic never leaves your machine).
+- Optional phone access (Settings → Access) opens a small read-only view at `/m` — what is running plus
+  approve/deny for pending requests. It requires an app password, turns HTTPS on, and is off by default;
+  risky actions need an extra confirmation tap.
 - Uses your own Claude Code credentials (subscription or API key); the app never sees or stores them, and
   strips API-key environment variables so turns use your subscription.
 - In Locked and Standard the agent is confined to `~/easyagent` and cannot read your secrets (`~/.ssh`,

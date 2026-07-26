@@ -36,6 +36,15 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
 
   // P7 — app password state (set/change/remove) + logout.
   const setHttps = useAgent((s) => s.setHttps);
+  // P7.1 — remote access (needs a password; implies https).
+  const setRemoteAccess = useAgent((s) => s.setRemoteAccess);
+  const [remote, setRemote] = useState<{
+    wanted: boolean;
+    active: boolean;
+    needPassword: boolean;
+    addresses: string[];
+    port: string;
+  } | null>(null);
   const [auth, setAuth] = useState<{ configured: boolean; authed: boolean } | null>(null);
   const [pwMode, setPwMode] = useState<null | "set" | "change" | "remove">(null);
   const [pwCur, setPwCur] = useState("");
@@ -48,10 +57,12 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
 
   const refreshAccount = () => fetch("/api/account/status").then((r) => r.json()).then(setAccount).catch(() => {});
   const refreshAuth = () => fetch("/api/auth/status").then((r) => r.json()).then(setAuth).catch(() => {});
+  const refreshRemote = () => fetch("/api/remote/info").then((r) => r.json()).then(setRemote).catch(() => {});
 
   useEffect(() => {
     refreshAccount();
     void refreshAuth();
+    void refreshRemote();
   }, []);
 
   const openPwMode = (m: "set" | "change" | "remove") => {
@@ -266,8 +277,39 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                 </div>
               </div>
             )}
-            <Toggle label={t("httpsLabel")} checked={settings.https} onChange={(v) => void setHttps(v)} />
+            <Toggle
+              label={t("httpsLabel")}
+              checked={settings.https}
+              onChange={(v) => void setHttps(v)}
+            />
             <p className="settings-sub">{t("httpsHint")}</p>
+
+            {/* P7.1 — remote access. Gated on having a password. */}
+            <Toggle
+              label={t("remoteLabel")}
+              checked={settings.remote}
+              onChange={async (v) => {
+                await setRemoteAccess(v);
+                await refreshRemote();
+              }}
+            />
+            <p className="settings-sub">{t("remoteHint")}</p>
+            {!auth?.configured && <p className="red-warning">{t("remoteNeedPw")}</p>}
+            {remote?.active && (
+              <div className="remote-on">
+                <Icon name="globe" size={13} /> {t("remoteOnBanner")}
+              </div>
+            )}
+            {settings.remote && !remote?.active && <p className="settings-sub">{t("remoteWanted")}</p>}
+            {settings.remote && remote && remote.addresses.length > 0 && (
+              <div className="remote-addr">
+                <span className="settings-sub">{t("remoteReach")}</span>
+                {remote.addresses.map((ip) => (
+                  <code key={ip}>{`https://${ip}:${remote.port}/m`}</code>
+                ))}
+                <p className="remote-warn">{t("remoteWarn")}</p>
+              </div>
+            )}
           </section>
 
           {/* -------- Connections (MCP) -------- */}

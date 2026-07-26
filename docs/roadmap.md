@@ -104,12 +104,34 @@ localhost/127.0.0.1/::1) and takes effect on restart. Default stays HTTP on
 `next start` can't serve TLS, so `server.mjs` (custom server) picks the scheme
 at boot from the settings flag and falls back to HTTP if the cert is missing.
 
-## P7.1 — Secure remote access (next)
+## P7.1 — Secure remote access (shipped 2026-07-26)
 
-Control sessions from a phone: read-only view of panels plus approve/deny for
-pending approvals. Explicitly scoped down — no remote IDE. Builds on P7: remote
-access must REQUIRE the app password (no "skip" path once the server binds to
-anything but loopback) and HTTPS on.
+Control sessions from a phone: read-only view of live turns plus approve/deny
+for pending approvals, at `/m`. Explicitly scoped down — no remote IDE, no way
+to start a turn, no transcript, no editor.
+
+**Architecture.** The server used to keep only the approval *resolvers*
+(`Map<approvalId, resolve>`); the title/risk travelled the SSE stream and lived
+solely in the browser that started the turn, which a phone can never join. The
+map now stores `{resolve, meta}`, so `/api/remote/state` can list what is
+waiting (plus a `target` — the file path or command — since the phone has no
+diff view and must not approve blind). Deciding from the phone reuses
+`/api/chat/approve`; the turn now carries an `emit` hook, so the desktop's
+stream gets an `approval_resolved` event and its modal disappears.
+
+**Network.** Off by default. Settings → Access has an "Access from your phone"
+toggle: it binds every interface instead of loopback and is refused unless an
+app password exists — it also forces HTTPS on. Those preconditions are checked
+in the settings route AND re-checked at boot in `server.mjs`, so a hand-edited
+settings file or a deleted certificate cannot open the door. The proxy's
+loopback rule is replaced (only while remote is on) by "Origin/Referer must
+equal Host", keeping the CSRF property for any hostname. Red actions need a
+second, deliberate tap on the phone.
+
+Reaching the machine from outside the local network still needs a port forward
+on the router, which exposes the app to the internet behind the password and
+rate limit alone. Adequate for testing; the planned server deployment should
+add real login + 2FA before it is left on.
 
 ## Postponed
 

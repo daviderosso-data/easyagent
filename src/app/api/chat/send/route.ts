@@ -28,6 +28,8 @@ const BodySchema = z.object({
   effort: z.enum(["low", "medium", "high", "xhigh", "max"]).optional(),
   systemAppend: z.string().max(20_000).optional(),
   orchestrationGrant: z.string().optional(),
+  /** Panel label, shown by the P7.1 remote view (orchestrated roles etc.). */
+  roleLabel: z.string().max(80).optional(),
 });
 
 function err(status: number, message: string): Response {
@@ -80,6 +82,9 @@ export async function POST(req: Request) {
   const turn = sessionManager.tryCreate(turnId, new AbortController(), MAX_CONCURRENT_TURNS);
   if (!turn) return err(429, "Too many requests in progress.");
   turn.cwd = cwdCheck.path!;
+  // Labels for the P7.1 remote list (which never saw this request's payload).
+  turn.project = cwdCheck.path!;
+  turn.roleLabel = body.roleLabel;
 
   // If the client goes away (tab closed, fetch aborted), abort the turn:
   // otherwise a turn parked on an approval would wait forever and keep its
@@ -99,6 +104,9 @@ export async function POST(req: Request) {
           closed = true;
         }
       };
+      // Let other clients (P7.1: the phone) push into this stream — approving
+      // remotely must clear the modal on the desktop that opened it.
+      turn.emit = (e) => send(e as AgentEvent);
       try {
         await runTurn({
           turnId,

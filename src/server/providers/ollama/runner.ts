@@ -295,18 +295,20 @@ export async function runOllamaTurn(req: TurnRequest): Promise<void> {
         // Writes ask for confirmation when the profile wants it; reads never do.
         if (fnName === "write_file" && config.behavior === "ask") {
           const approvalId = randomUUID();
-          send({
-            type: "approval_request",
+          const meta = {
             approvalId,
             turnId,
             toolName: display.name,
-            input: display.input,
             title: String(display.input.file_path ?? ""),
-            risk: "normal",
+            target: String(display.input.file_path ?? "") || undefined,
+            risk: "normal" as const,
             severity: "write",
-          });
+            askedAt: Date.now(),
+          };
+          send({ type: "approval_request", ...meta, input: display.input });
           const decision = await new Promise<{ allow: boolean; message?: string }>((resolvePromise) => {
-            turn.pendingApprovals.set(approvalId, resolvePromise);
+            // Metadata kept server-side for the P7.1 remote view.
+            turn.pendingApprovals.set(approvalId, { meta, resolve: resolvePromise });
           });
           outcome = decision.allow
             ? execProjectTool(cwd, fnName, args)
